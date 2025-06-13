@@ -26,133 +26,130 @@ def triple_check(a, b, c):
     key="main_code_input"
 )
 
-# Session state for quantum input widgets (THREE_XOR)
-if "A3" not in st.session_state:
-    st.session_state["A3"] = 1
-if "B3" not in st.session_state:
-    st.session_state["B3"] = 1
-if "C3" not in st.session_state:
-    st.session_state["C3"] = 1
+# --- Run button with session state flag ---
+run_clicked = st.button("Run Quantum Security Analysis")
 
-a_val = st.number_input(
-    "Input value A (0 or 1):", min_value=0, max_value=1,
-    value=st.session_state["A3"], key="A3_input"
-)
-b_val = st.number_input(
-    "Input value B (0 or 1):", min_value=0, max_value=1,
-    value=st.session_state["B3"], key="B3_input"
-)
-c_val = st.number_input(
-    "Input value C (0 or 1):", min_value=0, max_value=1,
-    value=st.session_state["C3"], key="C3_input"
-)
-st.session_state["A3"] = a_val
-st.session_state["B3"] = b_val
-st.session_state["C3"] = c_val
+if "run_analysis" not in st.session_state:
+    st.session_state["run_analysis"] = False
+if "last_code" not in st.session_state:
+    st.session_state["last_code"] = ""
 
-st.button("Run Quantum Security Analysis")
+if run_clicked:
+    st.session_state["run_analysis"] = True
+    st.session_state["last_code"] = code_input
+elif st.session_state["last_code"] != code_input:
+    st.session_state["run_analysis"] = False
 
-patterns = detect_patterns(code_input)
-detected = [p.name for p in patterns if p != LogicPattern.UNKNOWN]
+if st.session_state.get("run_analysis"):
+    patterns = detect_patterns(code_input)
+    detected = [p.name for p in patterns if p != LogicPattern.UNKNOWN]
 
-st.subheader("🔍 Detected Pattern(s)")
-if detected:
-    st.success(", ".join(detected))
-else:
-    st.info("No known risky logic patterns detected.")
+    st.subheader("🔍 Detected Pattern(s)")
+    if detected:
+        st.success(", ".join(detected))
+    else:
+        st.info("No known risky logic patterns detected.")
 
-logic_exprs = extract_logic_expressions(code_input)
-if logic_exprs:
-    st.write("**Extracted logic expressions:**")
-    for expr in logic_exprs:
-        st.code(expr)
-else:
-    st.write("No explicit logic expressions parsed.")
+    logic_exprs = extract_logic_expressions(code_input)
+    if logic_exprs:
+        st.write("**Extracted logic expressions:**")
+        for expr in logic_exprs:
+            st.code(expr)
+    else:
+        st.write("No explicit logic expressions parsed.")
 
-# --- Quantum logic analysis blocks ---
-if LogicPattern.THREE_XOR in patterns:
-    st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-    try:
-        circuit = build_quantum_circuit("THREE_XOR", a_val=a_val, b_val=b_val, c_val=c_val)
-        score, measurements = run_quantum_analysis(circuit, "THREE_XOR")
-        pct, risk_label = format_score(score)
-    except Exception as e:
-        st.error(f"Quantum analysis failed: {e}")
-        score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
-    st.metric("Quantum Pattern Match Score", pct, risk_label)
-    st.write("**Quantum Circuit Diagram:**")
-    st.code(circuit_to_text(circuit), language="text")
-    with st.spinner("Gemini is explaining the result..."):
-        explanation = explain_result(score, "THREE_XOR", code_input)
-    st.info("**Gemini AI Explanation:**\n" + explanation)
+    # --- Pattern-specific quantum input and analysis ---
+    if LogicPattern.THREE_XOR in patterns:
+        st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
+        a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
+        b_val = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B3_input")
+        c_val = st.number_input("Input value C (0 or 1):", 0, 1, 1, key="C3_input")
+        try:
+            circuit = build_quantum_circuit("THREE_XOR", a_val=a_val, b_val=b_val, c_val=c_val)
+            score, measurements = run_quantum_analysis(circuit, "THREE_XOR")
+            pct, risk_label = format_score(score)
+        except Exception as e:
+            st.error(f"Quantum analysis failed: {e}")
+            score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "THREE_XOR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-elif LogicPattern.XOR in patterns:
-    st.markdown("### ⚛️ Quantum Analysis: XOR (3 Qubits)")
-    try:
-        circuit = build_quantum_circuit("XOR", a_val=1, b_val=1)
-        score, measurements = run_quantum_analysis(circuit, "XOR")
-        pct, risk_label = format_score(score)
-    except Exception as e:
-        st.error(f"Quantum analysis failed: {e}")
-        score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
-    st.metric("Quantum Pattern Match Score", pct, risk_label)
-    st.write("**Quantum Circuit Diagram:**")
-    st.code(circuit_to_text(circuit), language="text")
-    with st.spinner("Gemini is explaining the result..."):
-        explanation = explain_result(score, "XOR", code_input)
-    st.info("**Gemini AI Explanation:**\n" + explanation)
+    elif LogicPattern.XOR in patterns:
+        st.markdown("### ⚛️ Quantum Analysis: XOR (3 Qubits)")
+        # If you want, enable A/B input here:
+        # a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A2_input")
+        # b_val = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B2_input")
+        try:
+            circuit = build_quantum_circuit("XOR", a_val=1, b_val=1)
+            score, measurements = run_quantum_analysis(circuit, "XOR")
+            pct, risk_label = format_score(score)
+        except Exception as e:
+            st.error(f"Quantum analysis failed: {e}")
+            score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "XOR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-elif LogicPattern.AND in patterns:
-    st.markdown("### ⚛️ Quantum Analysis: AND (3 Qubits)")
-    try:
-        circuit = build_quantum_circuit("AND", a_val=1, b_val=1)
-        score, measurements = run_quantum_analysis(circuit, "AND")
-        pct, risk_label = format_score(score)
-    except Exception as e:
-        st.error(f"Quantum analysis failed: {e}")
-        score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
-    st.metric("Quantum Pattern Match Score", pct, risk_label)
-    st.write("**Quantum Circuit Diagram:**")
-    st.code(circuit_to_text(circuit), language="text")
-    with st.spinner("Gemini is explaining the result..."):
-        explanation = explain_result(score, "AND", code_input)
-    st.info("**Gemini AI Explanation:**\n" + explanation)
+    elif LogicPattern.AND in patterns:
+        st.markdown("### ⚛️ Quantum Analysis: AND (3 Qubits)")
+        # Optionally, add A/B input if you want
+        try:
+            circuit = build_quantum_circuit("AND", a_val=1, b_val=1)
+            score, measurements = run_quantum_analysis(circuit, "AND")
+            pct, risk_label = format_score(score)
+        except Exception as e:
+            st.error(f"Quantum analysis failed: {e}")
+            score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "AND", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-elif LogicPattern.OR in patterns:
-    st.markdown("### ⚛️ Quantum Analysis: OR (3 Qubits)")
-    try:
-        circuit = build_quantum_circuit("OR", a_val=1, b_val=1)
-        score, measurements = run_quantum_analysis(circuit, "OR")
-        pct, risk_label = format_score(score)
-    except Exception as e:
-        st.error(f"Quantum analysis failed: {e}")
-        score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
-    st.metric("Quantum Pattern Match Score", pct, risk_label)
-    st.write("**Quantum Circuit Diagram:**")
-    st.code(circuit_to_text(circuit), language="text")
-    with st.spinner("Gemini is explaining the result..."):
-        explanation = explain_result(score, "OR", code_input)
-    st.info("**Gemini AI Explanation:**\n" + explanation)
+    elif LogicPattern.OR in patterns:
+        st.markdown("### ⚛️ Quantum Analysis: OR (3 Qubits)")
+        # Optionally, add A/B input if you want
+        try:
+            circuit = build_quantum_circuit("OR", a_val=1, b_val=1)
+            score, measurements = run_quantum_analysis(circuit, "OR")
+            pct, risk_label = format_score(score)
+        except Exception as e:
+            st.error(f"Quantum analysis failed: {e}")
+            score, pct, risk_label = 0.0, "N/A", "UNKNOWN"
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "OR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-else:
-    st.warning(
-        "❌ Quantum analysis not performed for this pattern. "
-        "Quantum simulation is only run for logic gates like XOR, AND, OR, 3-input XOR."
+    else:
+        st.warning(
+            "❌ Quantum analysis not performed for this pattern. "
+            "Quantum simulation is only run for logic gates like XOR, AND, OR, 3-input XOR."
+        )
+        with st.spinner("Gemini is analyzing the code..."):
+            explanation = explain_result(0.0, "OTHER", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
+
+    if LogicPattern.TIME_BOMB in patterns:
+        st.warning(
+            "⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit."
+        )
+    if LogicPattern.CONTROL_FLOW in patterns:
+        st.error(
+            "🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully."
+        )
+
+    st.markdown("---")
+    st.markdown(
+        "Built with 🧑‍💻 Cirq, 🦾 Gemini AI, and [Streamlit](https://streamlit.io/) | (c) 2025 Q-Trace Pro"
     )
-    with st.spinner("Gemini is analyzing the code..."):
-        explanation = explain_result(0.0, "OTHER", code_input)
-    st.info("**Gemini AI Explanation:**\n" + explanation)
-
-if LogicPattern.TIME_BOMB in patterns:
-    st.warning(
-        "⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit."
-    )
-if LogicPattern.CONTROL_FLOW in patterns:
-    st.error(
-        "🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully."
-    )
-
-st.markdown("---")
-st.markdown(
-    "Built with 🧑‍💻 Cirq, 🦾 Gemini AI, and [Streamlit](https://streamlit.io/) | (c) 2025 Q-Trace Pro"
-)
