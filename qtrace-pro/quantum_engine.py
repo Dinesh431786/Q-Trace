@@ -1,92 +1,121 @@
-# quantum_engine.py
-
 import cirq
-from pattern_matcher import LogicPattern
+import numpy as np
 
-def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
-    """
-    Build a quantum circuit for the selected logic pattern.
-    For 2-input: a, b; for 3-input: a, b, c.
-    """
-    if logic_type == "XOR":
+class QuantumLogicType:
+    XOR = "XOR"
+    AND = "AND"
+    OR = "OR"
+    THREE_XOR = "THREE_XOR"
+
+def build_quantum_circuit(pattern, a_val=1, b_val=1, c_val=1):
+    if pattern == "XOR":
+        # 2-input XOR with 3 qubits: q0, q1, q2 (result)
         q0, q1, q2 = cirq.LineQubit.range(3)
         circuit = cirq.Circuit()
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
-        circuit.append([cirq.CNOT(q0, q2), cirq.CNOT(q1, q2)])
-        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
-        circuit.append(cirq.measure(q0, q1, q2))
+        circuit.append([
+            cirq.CNOT(q0, q2),
+            cirq.CNOT(q1, q2)
+        ])
+        circuit.append([cirq.H(q0), cirq.H(q1), cirq.H(q2)])
+        circuit.append(cirq.measure(q0, q1, q2, key='result'))
         return circuit
 
-    elif logic_type == "AND":
+    elif pattern == "AND":
+        # 2-input AND with 3 qubits: q0, q1, q2 (result)
         q0, q1, q2 = cirq.LineQubit.range(3)
         circuit = cirq.Circuit()
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
-        circuit.append(cirq.CCNOT(q0, q1, q2))  # Toffoli
-        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
-        circuit.append(cirq.measure(q0, q1, q2))
+        # AND logic using Toffoli gate
+        circuit.append(cirq.TOFFOLI(q0, q1, q2))
+        circuit.append([cirq.H(q0), cirq.H(q1), cirq.H(q2)])
+        circuit.append(cirq.measure(q0, q1, q2, key='result'))
         return circuit
 
-    elif logic_type == "OR":
+    elif pattern == "OR":
+        # 2-input OR with 3 qubits: q0, q1, q2 (result)
         q0, q1, q2 = cirq.LineQubit.range(3)
         circuit = cirq.Circuit()
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
-        # OR using De Morgan: NOT(AND(NOT a, NOT b))
+        # OR logic: result = a OR b = NOT ( (NOT a) AND (NOT b) )
         circuit.append([cirq.X(q0), cirq.X(q1)])
-        circuit.append(cirq.CCNOT(q0, q1, q2))
+        circuit.append(cirq.TOFFOLI(q0, q1, q2))
         circuit.append([cirq.X(q0), cirq.X(q1), cirq.X(q2)])
-        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
-        circuit.append(cirq.measure(q0, q1, q2))
+        circuit.append([cirq.H(q0), cirq.H(q1), cirq.H(q2)])
+        circuit.append(cirq.measure(q0, q1, q2, key='result'))
         return circuit
 
-    # --- 3-input XOR quantum simulation (4 qubits) ---
-    elif logic_type == "THREE_XOR":
+    elif pattern == "THREE_XOR":
+        # 3-input XOR with 4 qubits: q0, q1, q2, q3 (result)
         q0, q1, q2, q3 = cirq.LineQubit.range(4)
         circuit = cirq.Circuit()
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
         if c_val: circuit.append(cirq.X(q2))
-        # q3 = q0 ^ q1 ^ q2
-        circuit.append(cirq.CNOT(q0, q3))
-        circuit.append(cirq.CNOT(q1, q3))
-        circuit.append(cirq.CNOT(q2, q3))
-        circuit.append([cirq.H(q) for q in [q0, q1, q2, q3]])
-        circuit.append(cirq.measure(q0, q1, q2, q3))
+        # XOR logic for three inputs: result = a ^ b ^ c
+        circuit.append([
+            cirq.CNOT(q0, q3),
+            cirq.CNOT(q1, q3),
+            cirq.CNOT(q2, q3)
+        ])
+        circuit.append([cirq.H(q0), cirq.H(q1), cirq.H(q2), cirq.H(q3)])
+        circuit.append(cirq.measure(q0, q1, q2, q3, key='result'))
         return circuit
 
     else:
-        raise ValueError("Unsupported logic type: " + logic_type)
+        raise ValueError(f"Unknown quantum pattern: {pattern}")
 
-def run_quantum_analysis(circuit, logic_type):
+def run_quantum_analysis(circuit, pattern):
     simulator = cirq.Simulator()
-    repetitions = 1000
-    result = simulator.run(circuit, repetitions=repetitions)
-    measurements = result.measurements
-    arr = list(measurements.values())[0]
-    # For 2-input logic: q0, q1, q2
-    if logic_type in ("XOR", "AND", "OR"):
-        matches = sum((bits[2] == (bits[0] ^ bits[1])) for bits in arr)
-        score = matches / repetitions
-    # For 3-input XOR: q0, q1, q2, q3
-    elif logic_type == "THREE_XOR":
-        matches = sum((bits[3] == (bits[0] ^ bits[1] ^ bits[2])) for bits in arr)
-        score = matches / repetitions
-    else:
-        score = 0.0
-    return score, measurements
+    try:
+        result = simulator.run(circuit, repetitions=1000)
+    except Exception as e:
+        # Always return a 0.0 score on failure
+        return 0.0, {}
 
-# --- Utility for logic_type compatibility ---
-class QuantumLogicType:
-    @staticmethod
-    def from_pattern(pattern: LogicPattern):
-        if pattern == LogicPattern.XOR:
-            return "XOR"
-        if pattern == LogicPattern.AND:
-            return "AND"
-        if pattern == LogicPattern.OR:
-            return "OR"
-        if pattern == LogicPattern.THREE_XOR:
-            return "THREE_XOR"
-        return None
+    measurements = result.measurements.get('result')
+    if measurements is None:
+        return 0.0, {}
+
+    # For scoring: measure how often result qubit matches logic
+    match_count = 0
+    total = len(measurements)
+
+    if pattern == "XOR":
+        # 3 qubits: a, b, res. res should be a^b
+        for row in measurements:
+            a, b, res = row
+            if res == (a ^ b):
+                match_count += 1
+    elif pattern == "AND":
+        # res == (a & b)
+        for row in measurements:
+            a, b, res = row
+            if res == (a & b):
+                match_count += 1
+    elif pattern == "OR":
+        # res == (a | b)
+        for row in measurements:
+            a, b, res = row
+            if res == (a | b):
+                match_count += 1
+    elif pattern == "THREE_XOR":
+        # 4 qubits: a, b, c, res. res == (a^b^c)
+        for row in measurements:
+            a, b, c, res = row
+            if res == (a ^ b ^ c):
+                match_count += 1
+    else:
+        return 0.0, {}
+
+    if total == 0:
+        score = 0.0
+    else:
+        score = match_count / total
+
+    # Clamp to [0, 1]
+    score = max(0.0, min(1.0, score))
+    return score, measurements
