@@ -46,12 +46,32 @@ if st.button("Run Quantum Security Analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # --- Explicit quantum UI: no vanishing! ---
+    # --- Robust quantum UI: state never vanishes! ---
     if LogicPattern.THREE_XOR in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-        a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1, key="A3")
-        b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1, key="B3")
-        c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1, key="C3")
+        # Initialize session state if not already set
+        for k, default in zip(("A3", "B3", "C3"), (1, 1, 1)):
+            if k not in st.session_state:
+                st.session_state[k] = default
+
+        a_val = st.number_input(
+            "Input value A (0 or 1):", min_value=0, max_value=1,
+            value=st.session_state["A3"], key="A3_input"
+        )
+        b_val = st.number_input(
+            "Input value B (0 or 1):", min_value=0, max_value=1,
+            value=st.session_state["B3"], key="B3_input"
+        )
+        c_val = st.number_input(
+            "Input value C (0 or 1):", min_value=0, max_value=1,
+            value=st.session_state["C3"], key="C3_input"
+        )
+
+        # Update session state after user input
+        st.session_state["A3"] = a_val
+        st.session_state["B3"] = b_val
+        st.session_state["C3"] = c_val
+
         circuit = build_quantum_circuit("THREE_XOR", a_val=a_val, b_val=b_val, c_val=c_val)
         score, measurements = run_quantum_analysis(circuit, "THREE_XOR")
         pct, risk_label = format_score(score)
@@ -64,7 +84,8 @@ if st.button("Run Quantum Security Analysis"):
 
     elif LogicPattern.XOR in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: XOR (3 Qubits)")
-        a_val, b_val = 1, 1  # Optional: make these inputs too if you want
+        # Optional: make these inputs if you want similar flexibility
+        a_val, b_val = 1, 1
         circuit = build_quantum_circuit("XOR", a_val=a_val, b_val=b_val)
         score, measurements = run_quantum_analysis(circuit, "XOR")
         pct, risk_label = format_score(score)
