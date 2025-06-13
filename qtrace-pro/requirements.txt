@@ -2,5 +2,4 @@ streamlit
 cirq
 google-generativeai
 tree-sitter
-tree-sitter-python
 numpy
