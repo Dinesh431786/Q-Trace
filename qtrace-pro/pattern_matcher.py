@@ -1,44 +1,45 @@
 # pattern_matcher.py
 
-from enum import Enum, auto
 import re
+from enum import Enum, auto
 
 class LogicPattern(Enum):
     XOR = auto()
     AND = auto()
     OR = auto()
+    THREE_XOR = auto()
     TIME_BOMB = auto()
     CONTROL_FLOW = auto()
     UNKNOWN = auto()
 
-def detect_patterns(code_text: str):
-    """
-    Detects which logic patterns are present in the given code snippet.
-    Returns a set of LogicPattern enums.
-    """
-    code_lower = code_text.lower()
-    patterns = set()
+def detect_patterns(code):
+    patterns = []
 
-    # XOR logic (bitwise or word 'xor')
-    if re.search(r"\b(xor)\b", code_lower) or "^" in code_text:
-        patterns.add(LogicPattern.XOR)
+    # 3-input XOR pattern (Python/C/JS style): (a ^ b ^ c)
+    if re.search(r"\w+\s*\^\s*\w+\s*\^\s*\w+", code):
+        patterns.append(LogicPattern.THREE_XOR)
 
-    # AND logic (bitwise, logical, word 'and')
-    if re.search(r"&&|\band\b|&", code_lower):
-        patterns.add(LogicPattern.AND)
+    # 2-input XOR
+    elif re.search(r"\w+\s*\^\s*\w+", code):
+        patterns.append(LogicPattern.XOR)
 
-    # OR logic (bitwise, logical, word 'or')
-    if re.search(r"\|\||\bor\b|\|", code_lower):
-        patterns.add(LogicPattern.OR)
+    # AND pattern
+    if re.search(r"\w+\s*&\s*\w+", code):
+        patterns.append(LogicPattern.AND)
 
-    # Time bomb (date/time related logic)
-    if re.search(r"\b(time|date|year|month|hour|minute|second)\b", code_lower):
-        patterns.add(LogicPattern.TIME_BOMB)
+    # OR pattern
+    if re.search(r"\w+\s*\|\s*\w+", code):
+        patterns.append(LogicPattern.OR)
 
-    # Obfuscated or suspicious control flow
-    if re.search(r"\bgoto\b|\bunreachable\b|label\s*:", code_lower):
-        patterns.add(LogicPattern.CONTROL_FLOW)
+    # Time Bomb
+    if re.search(r"(date|time|datetime)", code, re.IGNORECASE):
+        patterns.append(LogicPattern.TIME_BOMB)
+
+    # Obfuscated control flow
+    if re.search(r"goto|flag\s*=", code, re.IGNORECASE):
+        patterns.append(LogicPattern.CONTROL_FLOW)
 
     if not patterns:
-        patterns.add(LogicPattern.UNKNOWN)
+        patterns.append(LogicPattern.UNKNOWN)
+
     return patterns
