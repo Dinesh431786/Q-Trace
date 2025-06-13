@@ -1,3 +1,5 @@
+# main.py
+
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -151,5 +153,5 @@ if st.session_state["analysis_run"]:
 
 st.markdown("---")
 st.markdown(
-    "Built with 🧑‍💻 Cirq, 🦾 Gemini AI, and [Streamlit](https://streamlit.io/)   | (c) 2025 Q-Trace Pro"
+    "Built with 🧑‍💻 Cirq, 🦾 Gemini AI, and [Streamlit](https://streamlit.io/) | (c) 2025 Q-Trace Pro"
 )
