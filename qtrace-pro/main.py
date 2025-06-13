@@ -16,6 +16,7 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
+# --- Always show code input ---
 code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
@@ -25,10 +26,41 @@ def triple_check(a, b, c):
     if (a ^ b ^ c) == 42:
         get_admin_shell()
 """,
+    key="main_code_input"
 )
 
-if st.button("Run Quantum Security Analysis"):
+# --- Always show quantum input widgets (for THREE_XOR) ---
+# Initialize session state for analysis trigger
+if "analysis_run" not in st.session_state:
+    st.session_state["analysis_run"] = False
 
+# Initialize session state for input values
+for k, default in zip(("A3", "B3", "C3"), (1, 1, 1)):
+    if k not in st.session_state:
+        st.session_state[k] = default
+
+a_val = st.number_input(
+    "Input value A (0 or 1):", min_value=0, max_value=1,
+    value=st.session_state["A3"], key="A3_input"
+)
+b_val = st.number_input(
+    "Input value B (0 or 1):", min_value=0, max_value=1,
+    value=st.session_state["B3"], key="B3_input"
+)
+c_val = st.number_input(
+    "Input value C (0 or 1):", min_value=0, max_value=1,
+    value=st.session_state["C3"], key="C3_input"
+)
+# Update session state
+st.session_state["A3"] = a_val
+st.session_state["B3"] = b_val
+st.session_state["C3"] = c_val
+
+# --- Button to trigger analysis ---
+if st.button("Run Quantum Security Analysis"):
+    st.session_state["analysis_run"] = True
+
+if st.session_state["analysis_run"]:
     patterns = detect_patterns(code_input)
     detected = [p.name for p in patterns if p != LogicPattern.UNKNOWN]
 
@@ -49,29 +81,6 @@ if st.button("Run Quantum Security Analysis"):
     # --- Robust quantum UI: state never vanishes! ---
     if LogicPattern.THREE_XOR in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-        # Initialize session state if not already set
-        for k, default in zip(("A3", "B3", "C3"), (1, 1, 1)):
-            if k not in st.session_state:
-                st.session_state[k] = default
-
-        a_val = st.number_input(
-            "Input value A (0 or 1):", min_value=0, max_value=1,
-            value=st.session_state["A3"], key="A3_input"
-        )
-        b_val = st.number_input(
-            "Input value B (0 or 1):", min_value=0, max_value=1,
-            value=st.session_state["B3"], key="B3_input"
-        )
-        c_val = st.number_input(
-            "Input value C (0 or 1):", min_value=0, max_value=1,
-            value=st.session_state["C3"], key="C3_input"
-        )
-
-        # Update session state after user input
-        st.session_state["A3"] = a_val
-        st.session_state["B3"] = b_val
-        st.session_state["C3"] = c_val
-
         circuit = build_quantum_circuit("THREE_XOR", a_val=a_val, b_val=b_val, c_val=c_val)
         score, measurements = run_quantum_analysis(circuit, "THREE_XOR")
         pct, risk_label = format_score(score)
@@ -84,9 +93,9 @@ if st.button("Run Quantum Security Analysis"):
 
     elif LogicPattern.XOR in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: XOR (3 Qubits)")
-        # Optional: make these inputs if you want similar flexibility
-        a_val, b_val = 1, 1
-        circuit = build_quantum_circuit("XOR", a_val=a_val, b_val=b_val)
+        # If you want inputs for a/b here, use same session state logic as above
+        a_val_xor, b_val_xor = 1, 1
+        circuit = build_quantum_circuit("XOR", a_val=a_val_xor, b_val=b_val_xor)
         score, measurements = run_quantum_analysis(circuit, "XOR")
         pct, risk_label = format_score(score)
         st.metric("Quantum Pattern Match Score", pct, risk_label)
@@ -98,8 +107,8 @@ if st.button("Run Quantum Security Analysis"):
 
     elif LogicPattern.AND in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: AND (3 Qubits)")
-        a_val, b_val = 1, 1
-        circuit = build_quantum_circuit("AND", a_val=a_val, b_val=b_val)
+        a_val_and, b_val_and = 1, 1
+        circuit = build_quantum_circuit("AND", a_val=a_val_and, b_val=b_val_and)
         score, measurements = run_quantum_analysis(circuit, "AND")
         pct, risk_label = format_score(score)
         st.metric("Quantum Pattern Match Score", pct, risk_label)
@@ -111,8 +120,8 @@ if st.button("Run Quantum Security Analysis"):
 
     elif LogicPattern.OR in patterns:
         st.markdown(f"### ⚛️ Quantum Analysis: OR (3 Qubits)")
-        a_val, b_val = 1, 1
-        circuit = build_quantum_circuit("OR", a_val=a_val, b_val=b_val)
+        a_val_or, b_val_or = 1, 1
+        circuit = build_quantum_circuit("OR", a_val=a_val_or, b_val=b_val_or)
         score, measurements = run_quantum_analysis(circuit, "OR")
         pct, risk_label = format_score(score)
         st.metric("Quantum Pattern Match Score", pct, risk_label)
