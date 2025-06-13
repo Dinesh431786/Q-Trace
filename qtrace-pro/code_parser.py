@@ -3,11 +3,10 @@
 from tree_sitter import Language, Parser
 import os
 
-# Path to the built shared object for your grammars
 PARSER_SO_PATH = os.getenv("TREE_SITTER_SO_PATH", "build/my-languages.so")
 
-# Load Python grammar from the .so file (this is the right API for PyPI 'tree_sitter')
-PY_LANGUAGE = Language(PARSER_SO_PATH, "python")
+# Use single-argument Language() constructor:
+PY_LANGUAGE = Language(PARSER_SO_PATH)
 
 parser = Parser()
 parser.set_language(PY_LANGUAGE)
@@ -26,7 +25,6 @@ def extract_logic_expressions(code_text):
         return code_bytes[node.start_byte:node.end_byte].decode("utf8")
 
     def walk(node):
-        # Look for if/return statements with logic ops
         if node.type in ("if_statement", "return_statement"):
             for child in node.children:
                 if child.type in ("test", "expression", "comparison_operator", "boolean_operator", "binary_operator"):
@@ -38,7 +36,6 @@ def extract_logic_expressions(code_text):
     return results
 
 if __name__ == "__main__":
-    # Example/test usage:
     code = """
 def access(user, timestamp):
     if (user ^ timestamp) == 0xBEEF:
