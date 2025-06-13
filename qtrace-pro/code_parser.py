@@ -1,41 +1,28 @@
 # code_parser.py
 
-import os
-from tree_sitter import Language, Parser
-
-# Path to your built grammar .so file
-PARSER_SO_PATH = os.getenv("TREE_SITTER_SO_PATH", "build/my-languages.so")
-
-# Correct for official tree-sitter Python binding
-PY_LANGUAGE = Language(PARSER_SO_PATH, "python")
-
-parser = Parser()
-parser.set_language(PY_LANGUAGE)
+import re
 
 def extract_logic_expressions(code_text):
     """
-    Parses Python code and extracts logic expressions in 'if' or 'return' statements.
-    Returns a list of extracted logic expressions as strings.
+    Extracts logical expressions from Python, C, or pseudo-code.
+    Returns a list of logic expressions from if/return lines.
     """
-    tree = parser.parse(bytes(code_text, "utf8"))
-    root_node = tree.root_node
-    code_bytes = code_text.encode("utf8")
-    results = []
-
-    def node_text(node):
-        return code_bytes[node.start_byte:node.end_byte].decode("utf8")
-
-    def walk(node):
-        # Look for if/return statements and extract conditions/expressions
-        if node.type in ("if_statement", "return_statement"):
-            for child in node.children:
-                if child.type in ("test", "expression", "comparison_operator", "boolean_operator", "binary_operator"):
-                    results.append(node_text(child))
-        for child in node.children:
-            walk(child)
-
-    walk(root_node)
-    return results
+    logic_lines = []
+    for line in code_text.splitlines():
+        line = line.strip()
+        # For Python, C, and pseudo-code: handle if/return lines
+        if line.startswith("if "):
+            # Extract everything after 'if' and before ':' or '{' or '(' or end of line
+            expr = re.split(r'[:{(]', line[3:].strip())[0].strip()
+            logic_lines.append(expr)
+        elif line.startswith("return "):
+            expr = line[7:].strip(" ;")
+            logic_lines.append(expr)
+        # For C-style: if(...) {
+        elif line.startswith("if("):
+            expr = line[3:].split(")")[0].strip()
+            logic_lines.append(expr)
+    return logic_lines
 
 if __name__ == "__main__":
     code = """
@@ -43,6 +30,13 @@ def access(user, timestamp):
     if (user ^ timestamp) == 0xBEEF:
         grant_admin()
     return (user & 42) or (timestamp == 2077)
+
+int check(int x, int y) {
+    if((x & y) == 42) {
+        return 1;
+    }
+    return 0;
+}
 """
     logic_exprs = extract_logic_expressions(code)
     print("Extracted logic expressions:")
