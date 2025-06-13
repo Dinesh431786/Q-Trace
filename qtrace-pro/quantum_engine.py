@@ -1,10 +1,8 @@
 # quantum_engine.py
 
 import cirq
-import numpy as np
 from pattern_matcher import LogicPattern
 
-# -- Existing 2-input XOR, AND, OR quantum logic --
 def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
     """
     Build a quantum circuit for the selected logic pattern.
@@ -16,7 +14,7 @@ def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
         circuit.append([cirq.CNOT(q0, q2), cirq.CNOT(q1, q2)])
-        circuit.append(cirq.H([q0, q1, q2]))
+        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
         circuit.append(cirq.measure(q0, q1, q2))
         return circuit
 
@@ -26,7 +24,7 @@ def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
         if a_val: circuit.append(cirq.X(q0))
         if b_val: circuit.append(cirq.X(q1))
         circuit.append(cirq.CCNOT(q0, q1, q2))  # Toffoli
-        circuit.append(cirq.H([q0, q1, q2]))
+        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
         circuit.append(cirq.measure(q0, q1, q2))
         return circuit
 
@@ -39,11 +37,11 @@ def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
         circuit.append([cirq.X(q0), cirq.X(q1)])
         circuit.append(cirq.CCNOT(q0, q1, q2))
         circuit.append([cirq.X(q0), cirq.X(q1), cirq.X(q2)])
-        circuit.append(cirq.H([q0, q1, q2]))
+        circuit.append([cirq.H(q) for q in [q0, q1, q2]])
         circuit.append(cirq.measure(q0, q1, q2))
         return circuit
 
-    # --- New: 3-input XOR quantum simulation ---
+    # --- 3-input XOR quantum simulation (4 qubits) ---
     elif logic_type == "THREE_XOR":
         q0, q1, q2, q3 = cirq.LineQubit.range(4)
         circuit = cirq.Circuit()
@@ -54,7 +52,7 @@ def build_quantum_circuit(logic_type, a_val=1, b_val=1, c_val=None):
         circuit.append(cirq.CNOT(q0, q3))
         circuit.append(cirq.CNOT(q1, q3))
         circuit.append(cirq.CNOT(q2, q3))
-        circuit.append(cirq.H([q0, q1, q2, q3]))
+        circuit.append([cirq.H(q) for q in [q0, q1, q2, q3]])
         circuit.append(cirq.measure(q0, q1, q2, q3))
         return circuit
 
