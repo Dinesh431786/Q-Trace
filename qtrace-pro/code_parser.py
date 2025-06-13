@@ -3,11 +3,13 @@
 from tree_sitter import Language, Parser
 import os
 
-# Paths and setup
-# Make sure you have built the Python grammar:
-# Language.build_library('build/my-languages.so', ['tree-sitter-python'])
+# Set path to the built grammar file (.so)
+# You can set the environment variable TREE_SITTER_SO_PATH,
+# or it will default to 'build/my-languages.so'
 PARSER_SO_PATH = os.getenv("TREE_SITTER_SO_PATH", "build/my-languages.so")
-PY_LANGUAGE = Language(PARSER_SO_PATH, 'python')
+
+# Correct Tree-sitter API usage: load the Python grammar from .so
+PY_LANGUAGE = Language.load(PARSER_SO_PATH)
 
 parser = Parser()
 parser.set_language(PY_LANGUAGE)
@@ -29,7 +31,8 @@ def extract_logic_expressions(code_text):
         # Look for if/return statements with logic ops
         if node.type in ("if_statement", "return_statement"):
             for child in node.children:
-                if child.type in ("binary_operator", "comparison_operator", "boolean_operator", "expression"):
+                # For Python, logic and comparison expressions are within "test" or "expression"
+                if child.type in ("test", "expression", "comparison_operator", "boolean_operator", "binary_operator"):
                     results.append(node_text(child))
         for child in node.children:
             walk(child)
@@ -38,7 +41,7 @@ def extract_logic_expressions(code_text):
     return results
 
 if __name__ == "__main__":
-    # Demo/test
+    # Demo/test usage:
     code = """
 def access(user, timestamp):
     if (user ^ timestamp) == 0xBEEF:
