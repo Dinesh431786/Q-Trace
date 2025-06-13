@@ -1,5 +1,3 @@
-# main.py
-
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -12,11 +10,10 @@ st.title("🌀 Q-Trace Pro – Quantum Logic Anomaly Detector")
 st.markdown(
     """
 Detect hidden adversarial logic in code using **quantum computing** and **AI explanations**.
-Supports XOR, AND, OR, time-based logic, and obfuscated control flow.
+Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flow.
 """
 )
 
-# --- Code Input ---
 code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
@@ -28,7 +25,6 @@ if ((user ^ timestamp) == 0xDEADBEEF):
 
 if st.button("Run Quantum Security Analysis"):
 
-    # --- Step 1: Detect Logic Patterns ---
     patterns = detect_patterns(code_input)
     detected = [p.name for p in patterns if p != LogicPattern.UNKNOWN]
 
@@ -38,7 +34,6 @@ if st.button("Run Quantum Security Analysis"):
     else:
         st.info("No known risky logic patterns detected.")
 
-    # --- Step 2: Extract Expressions (if possible) ---
     logic_exprs = extract_logic_expressions(code_input)
     if logic_exprs:
         st.write("**Extracted logic expressions:**")
@@ -47,17 +42,32 @@ if st.button("Run Quantum Security Analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # --- Step 3: Quantum Analysis Only for Supported Patterns ---
-    QUANTUM_SUPPORTED = [LogicPattern.XOR, LogicPattern.AND, LogicPattern.OR]
+    # --- Support for 2-input & 3-input logic ---
+    QUANTUM_SUPPORTED = [
+        LogicPattern.XOR,
+        LogicPattern.AND,
+        LogicPattern.OR,
+        LogicPattern.THREE_XOR,
+    ]
     quantum_run = False
 
     for pattern in patterns:
         if pattern in QUANTUM_SUPPORTED:
-            logic_type = pattern.name  # "XOR", "AND", "OR"
+            logic_type = QuantumLogicType.from_pattern(pattern)
             quantum_run = True
 
-            st.markdown(f"### ⚛️ Quantum Analysis: {logic_type} (3 Qubits)")
-            circuit = build_quantum_circuit(logic_type, a_val=1, b_val=1)
+            # For 3-input XOR, ask user for input values for 3 bits (for demo, default to 1,1,1)
+            if logic_type == "THREE_XOR":
+                st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
+                a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1)
+                b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1)
+                c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1)
+                circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val, c_val=c_val)
+            else:
+                st.markdown(f"### ⚛️ Quantum Analysis: {logic_type} (3 Qubits)")
+                a_val, b_val = 1, 1  # or let user choose for more UX
+                circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val)
+
             score, measurements = run_quantum_analysis(circuit, logic_type)
             pct, risk_label = format_score(score)
             st.metric("Quantum Pattern Match Score", pct, risk_label)
@@ -65,27 +75,21 @@ if st.button("Run Quantum Security Analysis"):
             st.write("**Quantum Circuit Diagram:**")
             st.code(circuit_to_text(circuit), language="text")
 
-            # --- Gemini AI Explanation ---
             with st.spinner("Gemini is explaining the result..."):
                 explanation = explain_result(score, logic_type, code_input)
             st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    # --- Show message if no quantum pattern found ---
     if not quantum_run:
         st.markdown(
             """
 ❌ **Quantum analysis not performed for this pattern.**  
-(Quantum simulation is only run for logic gates like XOR, AND, OR.)
+(Quantum simulation is only run for logic gates like XOR, AND, OR, 3-input XOR.)
 """
         )
-
-        # Still get a Gemini explanation, but with a custom prompt for unsupported logic
         with st.spinner("Gemini is analyzing the code..."):
-            # Use a generic explanation for other patterns
             explanation = explain_result(0.0, "OTHER", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    # --- Alerts for other patterns ---
     if LogicPattern.TIME_BOMB in patterns:
         st.warning(
             "⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit."
@@ -95,8 +99,7 @@ if st.button("Run Quantum Security Analysis"):
             "🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully."
         )
 
-# --- Visual/footer ---
 st.markdown("---")
 st.markdown(
-    "Built with 🧑‍💻 [Cirq](https://quantumai.google/cirq), 🦾 Gemini AI, and [Streamlit](https://streamlit.io/) | (c) 2025 Q-Trace Pro"
+    "Built with 🧑‍💻 Cirq, 🦾 Gemini AI, and [Streamlit](https://streamlit.io/) | (c) 2025 Q-Trace Pro"
 )
