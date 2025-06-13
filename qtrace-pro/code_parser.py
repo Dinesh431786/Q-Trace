@@ -1,13 +1,12 @@
 # code_parser.py
 
 import os
-
 from tree_sitter import Language, Parser
 
-# Path to the shared library built from the Python grammar
+# Path to your built grammar .so file
 PARSER_SO_PATH = os.getenv("TREE_SITTER_SO_PATH", "build/my-languages.so")
 
-# This is the CORRECT syntax for the official PyPI 'tree-sitter' package!
+# Correct for official tree-sitter Python binding
 PY_LANGUAGE = Language(PARSER_SO_PATH, "python")
 
 parser = Parser()
