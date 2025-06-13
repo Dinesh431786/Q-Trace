@@ -18,8 +18,10 @@ code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
     value="""
-if ((user ^ timestamp) == 0xDEADBEEF):
-    grant_admin()
+def triple_check(a, b, c):
+    # 3-input XOR backdoor
+    if (a ^ b ^ c) == 42:
+        get_admin_shell()
 """,
 )
 
@@ -42,30 +44,29 @@ if st.button("Run Quantum Security Analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # --- Support for 2-input & 3-input logic ---
     QUANTUM_SUPPORTED = [
         LogicPattern.XOR,
         LogicPattern.AND,
         LogicPattern.OR,
         LogicPattern.THREE_XOR,
     ]
-    quantum_run = False
+    quantum_displayed = False
 
     for pattern in patterns:
         if pattern in QUANTUM_SUPPORTED:
             logic_type = QuantumLogicType.from_pattern(pattern)
-            quantum_run = True
+            quantum_displayed = True
 
-            # For 3-input XOR, ask user for input values for 3 bits (for demo, default to 1,1,1)
+            # Always render input boxes and results, regardless of input values
             if logic_type == "THREE_XOR":
                 st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-                a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1)
-                b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1)
-                c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1)
+                a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1, key="A3")
+                b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1, key="B3")
+                c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1, key="C3")
                 circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val, c_val=c_val)
             else:
                 st.markdown(f"### ⚛️ Quantum Analysis: {logic_type} (3 Qubits)")
-                a_val, b_val = 1, 1  # or let user choose for more UX
+                a_val, b_val = 1, 1  # Optionally let user set these too
                 circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val)
 
             score, measurements = run_quantum_analysis(circuit, logic_type)
@@ -79,7 +80,8 @@ if st.button("Run Quantum Security Analysis"):
                 explanation = explain_result(score, logic_type, code_input)
             st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    if not quantum_run:
+    # Always show quantum section if detected, even if score == 0 or all input zero
+    if not quantum_displayed:
         st.markdown(
             """
 ❌ **Quantum analysis not performed for this pattern.**  
