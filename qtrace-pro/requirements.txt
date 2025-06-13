@@ -1,6 +1,4 @@
 streamlit
 cirq
 google-generativeai
-tree-sitter==0.20.4
-tree-sitter-python
 numpy
