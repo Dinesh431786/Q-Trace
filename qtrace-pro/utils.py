@@ -1,47 +1,25 @@
-# utils.py
-
-import numpy as np
-
-def format_score(score, threshold=0.8):
+def format_score(score):
     """
-    Formats the score as a percentage and gives a risk label.
-    Returns: (score_str, label)
+    Returns (score_string, risk_label) for the UI.
+    Always safe: score can be None, not a number, etc.
     """
-    pct = f"{score * 100:.1f}%"
-    if score >= threshold:
-        label = "HIGH RISK"
-    elif score >= 0.5:
-        label = "MODERATE RISK"
-    else:
-        label = "LOW RISK"
-    return pct, label
-
-def bitwise_truth(a, b, logic_type):
-    """
-    Returns the expected result of a logic operation on a, b.
-    Supports 'XOR', 'AND', 'OR'.
-    """
-    if logic_type == "XOR":
-        return a ^ b
-    elif logic_type == "AND":
-        return a & b
-    elif logic_type == "OR":
-        return a | b
-    else:
-        raise ValueError(f"Unknown logic type: {logic_type}")
+    try:
+        if score is None or not isinstance(score, (int, float)):
+            return "N/A", "UNKNOWN"
+        elif score < 0.4:
+            return f"{score*100:.1f}%", "LOW RISK"
+        elif score < 0.7:
+            return f"{score*100:.1f}%", "MODERATE RISK"
+        else:
+            return f"{score*100:.1f}%", "HIGH RISK"
+    except Exception:
+        return "N/A", "UNKNOWN"
 
 def circuit_to_text(circuit):
     """
-    Returns a string representation of a Cirq quantum circuit for display.
+    Returns a text/ascii diagram of the quantum circuit.
     """
     try:
-        return str(circuit.draw())
-    except Exception:
         return str(circuit)
-
-def array_sample_stats(arr):
-    """
-    Given a numpy array, returns min, max, mean as a tuple.
-    """
-    arr = np.array(arr)
-    return arr.min(), arr.max(), arr.mean()
+    except Exception:
+        return "<circuit unavailable>"
