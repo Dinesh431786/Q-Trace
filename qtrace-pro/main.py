@@ -1,3 +1,5 @@
+# main.py
+
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -44,44 +46,62 @@ if st.button("Run Quantum Security Analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    QUANTUM_SUPPORTED = [
-        LogicPattern.XOR,
-        LogicPattern.AND,
-        LogicPattern.OR,
-        LogicPattern.THREE_XOR,
-    ]
-    quantum_displayed = False
+    # --- Explicit quantum UI: no vanishing! ---
+    if LogicPattern.THREE_XOR in patterns:
+        st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
+        a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1, key="A3")
+        b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1, key="B3")
+        c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1, key="C3")
+        circuit = build_quantum_circuit("THREE_XOR", a_val=a_val, b_val=b_val, c_val=c_val)
+        score, measurements = run_quantum_analysis(circuit, "THREE_XOR")
+        pct, risk_label = format_score(score)
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "THREE_XOR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    for pattern in patterns:
-        if pattern in QUANTUM_SUPPORTED:
-            logic_type = QuantumLogicType.from_pattern(pattern)
-            quantum_displayed = True
+    elif LogicPattern.XOR in patterns:
+        st.markdown(f"### ⚛️ Quantum Analysis: XOR (3 Qubits)")
+        a_val, b_val = 1, 1  # Optional: make these inputs too if you want
+        circuit = build_quantum_circuit("XOR", a_val=a_val, b_val=b_val)
+        score, measurements = run_quantum_analysis(circuit, "XOR")
+        pct, risk_label = format_score(score)
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "XOR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-            # Always render input boxes and results, regardless of input values
-            if logic_type == "THREE_XOR":
-                st.markdown(f"### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-                a_val = st.number_input("Input value A (0 or 1):", min_value=0, max_value=1, value=1, key="A3")
-                b_val = st.number_input("Input value B (0 or 1):", min_value=0, max_value=1, value=1, key="B3")
-                c_val = st.number_input("Input value C (0 or 1):", min_value=0, max_value=1, value=1, key="C3")
-                circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val, c_val=c_val)
-            else:
-                st.markdown(f"### ⚛️ Quantum Analysis: {logic_type} (3 Qubits)")
-                a_val, b_val = 1, 1  # Optionally let user set these too
-                circuit = build_quantum_circuit(logic_type, a_val=a_val, b_val=b_val)
+    elif LogicPattern.AND in patterns:
+        st.markdown(f"### ⚛️ Quantum Analysis: AND (3 Qubits)")
+        a_val, b_val = 1, 1
+        circuit = build_quantum_circuit("AND", a_val=a_val, b_val=b_val)
+        score, measurements = run_quantum_analysis(circuit, "AND")
+        pct, risk_label = format_score(score)
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "AND", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-            score, measurements = run_quantum_analysis(circuit, logic_type)
-            pct, risk_label = format_score(score)
-            st.metric("Quantum Pattern Match Score", pct, risk_label)
+    elif LogicPattern.OR in patterns:
+        st.markdown(f"### ⚛️ Quantum Analysis: OR (3 Qubits)")
+        a_val, b_val = 1, 1
+        circuit = build_quantum_circuit("OR", a_val=a_val, b_val=b_val)
+        score, measurements = run_quantum_analysis(circuit, "OR")
+        pct, risk_label = format_score(score)
+        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        st.write("**Quantum Circuit Diagram:**")
+        st.code(circuit_to_text(circuit), language="text")
+        with st.spinner("Gemini is explaining the result..."):
+            explanation = explain_result(score, "OR", code_input)
+        st.info("**Gemini AI Explanation:**\n" + explanation)
 
-            st.write("**Quantum Circuit Diagram:**")
-            st.code(circuit_to_text(circuit), language="text")
-
-            with st.spinner("Gemini is explaining the result..."):
-                explanation = explain_result(score, logic_type, code_input)
-            st.info("**Gemini AI Explanation:**\n" + explanation)
-
-    # Always show quantum section if detected, even if score == 0 or all input zero
-    if not quantum_displayed:
+    else:
         st.markdown(
             """
 ❌ **Quantum analysis not performed for this pattern.**  
