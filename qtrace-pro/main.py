@@ -14,11 +14,13 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
-# --- UI code input ---
-language = st.selectbox("Select language:", ["python", "c"], index=0)
+# Supported languages: add more as you update code_parser.py
+LANGUAGES = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
+
+language = st.selectbox("Select language:", LANGUAGES, index=0)
 
 code_input = st.text_area(
-    "Paste your code snippet (Python, C, or pseudo-code supported):",
+    f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
     height=200,
     value="""
 def triple_check(a, b, c):
@@ -43,11 +45,10 @@ elif st.session_state["last_code"] != code_input:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
-    # --- Use language-aware extraction ---
+    # Use language-aware extraction
     logic_exprs = extract_logic_expressions(code_input, language=language)
     patterns = detect_patterns(logic_exprs)
-    
-    # Pattern label helper
+
     def pattern_label(p):
         return getattr(p, "name", str(p))
 
@@ -69,7 +70,7 @@ if st.session_state.get("run_analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # --- Pattern-specific quantum input and analysis ---
+    # Pattern-specific quantum input and analysis
     if any(pattern_label(p) == "THREE_XOR" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
         a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
