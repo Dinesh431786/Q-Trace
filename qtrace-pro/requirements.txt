@@ -4,3 +4,4 @@ tree-sitter-language-pack
 cirq
 google-generativeai
 numpy
+guesslang
