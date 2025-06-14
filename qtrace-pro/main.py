@@ -14,6 +14,7 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
+# --- UI code input ---
 code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
@@ -41,17 +42,18 @@ elif st.session_state["last_code"] != code_input:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
+    # --- Extract logic expressions with AST (multi-language) ---
     logic_exprs = extract_logic_expressions(code_input)
     patterns = detect_patterns(logic_exprs)
-    # --- Pattern detection fix: support both enums and strings
+    
+    # Fix: detected can contain both enums and strings. Only show enums with name, else str.
+    def pattern_label(p):
+        return p.name if hasattr(p, "name") else str(p)
+
     detected = [
         p for p in patterns
-        if (isinstance(p, LogicPattern) and p != LogicPattern.UNKNOWN)
-        or (isinstance(p, str) and p != "UNKNOWN")
+        if (hasattr(p, "name") and p != LogicPattern.UNKNOWN) or (isinstance(p, str) and p != "UNKNOWN")
     ]
-
-    def pattern_label(p):
-        return p.name if isinstance(p, LogicPattern) else str(p)
 
     st.subheader("🔍 Detected Pattern(s)")
     if detected:
@@ -67,7 +69,7 @@ if st.session_state.get("run_analysis"):
         st.write("No explicit logic expressions parsed.")
 
     # --- Pattern-specific quantum input and analysis ---
-    if LogicPattern.THREE_XOR in patterns or "THREE_XOR" in patterns:
+    if any(pattern_label(p) == "THREE_XOR" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
         a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
         b_val = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B3_input")
@@ -86,7 +88,7 @@ if st.session_state.get("run_analysis"):
             explanation = explain_result(score, "THREE_XOR", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    elif LogicPattern.XOR in patterns or "XOR" in patterns:
+    elif any(pattern_label(p) == "XOR" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: XOR (3 Qubits)")
         try:
             circuit = build_quantum_circuit("XOR", a_val=1, b_val=1)
@@ -102,7 +104,7 @@ if st.session_state.get("run_analysis"):
             explanation = explain_result(score, "XOR", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    elif LogicPattern.AND in patterns or "AND" in patterns:
+    elif any(pattern_label(p) == "AND" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: AND (3 Qubits)")
         try:
             circuit = build_quantum_circuit("AND", a_val=1, b_val=1)
@@ -118,7 +120,7 @@ if st.session_state.get("run_analysis"):
             explanation = explain_result(score, "AND", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    elif LogicPattern.OR in patterns or "OR" in patterns:
+    elif any(pattern_label(p) == "OR" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: OR (3 Qubits)")
         try:
             circuit = build_quantum_circuit("OR", a_val=1, b_val=1)
@@ -143,11 +145,12 @@ if st.session_state.get("run_analysis"):
             explanation = explain_result(0.0, "OTHER", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
 
-    if LogicPattern.TIME_BOMB in patterns or "TIME_BOMB" in patterns:
+    # Extra warnings for risky patterns
+    if any(pattern_label(p) == "TIME_BOMB" for p in detected):
         st.warning(
             "⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit."
         )
-    if LogicPattern.CONTROL_FLOW in patterns or "CONTROL_FLOW" in patterns:
+    if any(pattern_label(p) == "CONTROL_FLOW" for p in detected):
         st.error(
             "🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully."
         )
