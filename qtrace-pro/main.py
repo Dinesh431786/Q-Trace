@@ -87,6 +87,7 @@ elif st.session_state["last_code"] != code_input or st.session_state["last_lang"
 
 # ------------- Benchmark: Show Quantum Scores for all patterns -------------
 if st.button("🚦 Show Quantum Pattern Benchmark"):
+    from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
     pattern_list = [
         "XOR", "THREE_XOR", "AND", "OR",
         "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
@@ -106,14 +107,20 @@ if st.button("🚦 Show Quantum Pattern Benchmark"):
     st.subheader("🚦 Quantum Pattern Benchmark Results")
     st.dataframe(df, use_container_width=True)
 
-    # --- Small horizontal bar chart (UI fix) ---
-    fig, ax = plt.subplots(figsize=(8, 3))
+    # --- Compact horizontal bar chart with clear labeling ---
+    fig, ax = plt.subplots(figsize=(7, 2.3))
     plot_vals = [float(x['Quantum Score'][:-1]) if x['Quantum Score'] != "-" else 0 for x in results]
-    ax.bar(pattern_list, plot_vals)
-    ax.set_ylabel("Quantum Score (%)", fontsize=12)
-    ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
+    bars = ax.bar(pattern_list, plot_vals, color="#1e88e5")
+    ax.set_ylabel("Quantum Score (%)", fontsize=11)
+    ax.set_xticklabels(pattern_list, rotation=28, ha="right", fontsize=9)
+    ax.set_ylim(0, 100)
+    for bar, val in zip(bars, plot_vals):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f"{val:.1f}%", ha='center', va='bottom', fontsize=8)
     plt.tight_layout()
     st.pyplot(fig)
+    st.caption("""
+    <b>How to interpret:</b> The benchmark shows typical quantum anomaly risk scores for each supported adversarial logic pattern, when mapped to a quantum circuit model. Higher = more anomalous/risky. Only applies to patterns supported by quantum simulation.
+    """, unsafe_allow_html=True)
     st.markdown("---")
 
 # ------------- Main Analysis Section -------------
@@ -163,7 +170,7 @@ if st.session_state.get("run_analysis"):
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
         user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
-    # Add UI for other advanced patterns as needed
+    # Add more UI if needed
 
     circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
 
@@ -174,12 +181,11 @@ if st.session_state.get("run_analysis"):
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
 
-        # --- ADVANCED: Quantum state visualization (collapsed by default) ---
-        with st.expander("Advanced: Quantum Circuit State (for researchers)", expanded=False):
+        # --- ADVANCED: Show quantum state chart ONLY if circuit is mapped ---
+        with st.expander("Advanced: Quantum State Probabilities (for researchers)", expanded=False):
             st.caption("""
-            The 'Quantum State Probabilities' chart shows the final measurement outcome of the simulated quantum logic circuit.
-            Each 'state' is a possible quantum state (in binary). This is for advanced users and does *not* indicate security risk or anomaly level.
-            For most users, you can ignore this section.
+            The 'Quantum State Probabilities' chart below shows measurement probabilities for each quantum state (basis vector) of the simulated circuit.
+            Most users can ignore this; it's for advanced users only.
             """)
             try:
                 buf = visualize_quantum_state(circuit)
