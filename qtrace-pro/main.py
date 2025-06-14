@@ -1,5 +1,3 @@
-# main.py
-
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -16,19 +14,18 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
-# --- Language selector ---
-language = st.selectbox(
-    "Select code language:",
-    options=["python", "c"],
-    index=0,
-    help="Multi-language analysis powered by Tree-sitter!"
-)
+# --- Language select ---
+language = st.selectbox("Code language:", ["python", "c"], index=0)
 
-# --- User code input ---
 code_input = st.text_area(
-    "Paste your code snippet (Python, C, or pseudo-code supported):",
+    "Paste your code snippet:",
     height=200,
-    value="""def triple_check(a, b, c):\n    # 3-input XOR backdoor\n    if (a ^ b ^ c) == 42:\n        get_admin_shell()\n""",
+    value="""
+def triple_check(a, b, c):
+    # 3-input XOR backdoor
+    if (a ^ b ^ c) == 42:
+        get_admin_shell()
+""",
     key="main_code_input"
 )
 
@@ -38,17 +35,11 @@ if "run_analysis" not in st.session_state:
     st.session_state["run_analysis"] = False
 if "last_code" not in st.session_state:
     st.session_state["last_code"] = ""
-if "last_lang" not in st.session_state:
-    st.session_state["last_lang"] = language
 
 if run_clicked:
     st.session_state["run_analysis"] = True
     st.session_state["last_code"] = code_input
-    st.session_state["last_lang"] = language
-elif (
-    st.session_state["last_code"] != code_input
-    or st.session_state["last_lang"] != language
-):
+elif st.session_state["last_code"] != code_input:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
@@ -59,7 +50,7 @@ if st.session_state.get("run_analysis"):
 
     st.subheader("🔍 Detected Pattern(s)")
     if detected:
-        st.success(", ".join(detected))
+        st.success(", ".join([p.name for p in detected]))
     else:
         st.info("No known risky logic patterns detected.")
 
@@ -146,15 +137,6 @@ if st.session_state.get("run_analysis"):
         with st.spinner("Gemini is analyzing the code..."):
             explanation = explain_result(0.0, "OTHER", code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
-
-    if LogicPattern.TIME_BOMB in patterns:
-        st.warning(
-            "⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit."
-        )
-    if LogicPattern.CONTROL_FLOW in patterns:
-        st.error(
-            "🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully."
-        )
 
     st.markdown("---")
     st.markdown(
