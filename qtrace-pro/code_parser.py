@@ -1,20 +1,18 @@
 # code_parser.py
 
 from tree_sitter import Parser
-from tree_sitter_language_pack import get_parser
+from tree_sitter_language_pack import get_language  # ← use get_language (not get_parser)
 
-# Map supported languages to their Tree-sitter parsers
 LANGUAGE_MAP = {
-    "python": get_parser("python"),
-    "c": get_parser("c"),
-    # Add more: "javascript", "java", etc. (if needed)
+    "python": get_language("python"),
+    "c": get_language("c"),
+    # Add more: "javascript", "java", etc. if you want
 }
 
 def extract_logic_expressions(code, language="python"):
     """
-    Extract conditional/logic expressions from code using Tree-sitter AST.
-    Supports: Python, C (expand as needed).
-    Returns: list of expressions as strings
+    Extracts logic/conditional expressions from code using Tree-sitter AST.
+    Supports: Python, C. Returns a list of expressions as strings.
     """
     if language not in LANGUAGE_MAP:
         raise ValueError(f"Unsupported language: {language}")
@@ -27,7 +25,7 @@ def extract_logic_expressions(code, language="python"):
     logic_expressions = []
 
     def walk_python(node):
-        # Python: Look for if_statement nodes
+        # Look for if_statement nodes (Python)
         if node.type == "if_statement":
             for child in node.children:
                 if child.type == "test":
@@ -36,7 +34,7 @@ def extract_logic_expressions(code, language="python"):
             walk_python(child)
 
     def walk_c(node):
-        # C: Look for if_statement nodes
+        # Look for if_statement nodes (C)
         if node.type == "if_statement":
             for child in node.children:
                 if child.type == "parenthesized_expression":
@@ -44,14 +42,10 @@ def extract_logic_expressions(code, language="python"):
         for child in node.children:
             walk_c(child)
 
-    # Dispatch by language
     if language == "python":
         walk_python(root)
     elif language == "c":
         walk_c(root)
-    else:
-        # You can add other languages here
-        pass
 
     return [expr.strip() for expr in logic_expressions]
 
