@@ -4,13 +4,6 @@ from code_parser import extract_logic_expressions
 from quantum_engine import build_quantum_circuit, run_quantum_analysis
 from gemini_explainer import explain_result
 from utils import format_score, circuit_to_text
-import os
-
-try:
-    from guesslang import Guess
-    GUESSLANG_AVAILABLE = True
-except ImportError:
-    GUESSLANG_AVAILABLE = False
 
 st.set_page_config(page_title="Q-Trace Pro", layout="wide")
 st.title("🌀 Q-Trace Pro – Quantum Logic Anomaly Detector")
@@ -22,61 +15,55 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 )
 
 LANGUAGES = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
+EXT_MAP = {
+    ".py": "python",
+    ".c": "c",
+    ".js": "javascript",
+    ".java": "java",
+    ".go": "go",
+    ".rs": "rust",
+    ".sol": "solidity",
+}
 
-def guess_language_from_code(code):
-    if not GUESSLANG_AVAILABLE:
-        return None
-    g = Guess()
-    result = g.language_name(code)
-    # Map to internal options
-    if "python" in result.lower():
-        return "python"
-    if "java" in result.lower():
-        return "java"
-    if "javascript" in result.lower():
-        return "javascript"
-    if "c++" in result.lower():
-        return "c"  # fallback
-    if "c" in result.lower():
-        return "c"
-    if "go" in result.lower():
-        return "go"
-    if "rust" in result.lower():
-        return "rust"
-    if "solidity" in result.lower():
-        return "solidity"
-    return None
+# --- File upload and auto language detection ---
+st.markdown("**Upload a code file (optional):**")
+uploaded_file = st.file_uploader(
+    "Upload code file", type=list([ext[1:] for ext in EXT_MAP]), key="file_upload"
+)
 
-# --- File upload or text area ---
-st.markdown("#### Code Input")
-uploaded_file = st.file_uploader("Upload a code file:", type=["py", "c", "js", "java", "go", "rs", "sol"])
-code_input = ""
-detected_language = None
-
-if uploaded_file is not None:
-    code_bytes = uploaded_file.read()
-    code_input = code_bytes.decode("utf-8", errors="replace")
-    if GUESSLANG_AVAILABLE:
-        detected_language = guess_language_from_code(code_input)
-        st.info(f"Detected language: **{detected_language}**" if detected_language else "Could not auto-detect language.")
-    else:
-        detected_language = None
-else:
-    code_input = st.text_area(
-        f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
-        height=200,
-        value="""
+default_code = """
 def triple_check(a, b, c):
     # 3-input XOR backdoor
     if (a ^ b ^ c) == 42:
         get_admin_shell()
-""",
-        key="main_code_input"
-    )
+"""
+detected_lang = None
+file_code = None
 
-# --- Language select ---
-default_index = LANGUAGES.index(detected_language) if detected_language in LANGUAGES else 0
-language = st.selectbox("Select language:", LANGUAGES, index=default_index, key="lang_select")
+if uploaded_file:
+    file_code = uploaded_file.read().decode(errors="ignore")
+    fname = uploaded_file.name.lower()
+    ext = next((e for e in EXT_MAP if fname.endswith(e)), None)
+    if ext:
+        detected_lang = EXT_MAP[ext]
+
+lang_index = 0
+if detected_lang and detected_lang in LANGUAGES:
+    lang_index = LANGUAGES.index(detected_lang)
+
+# --- Language selection ---
+language = st.selectbox(
+    "Select language:", LANGUAGES, index=lang_index,
+    help="Auto-set by file upload if possible. You can override manually."
+)
+
+# --- Code input (either from file or textbox) ---
+code_input = st.text_area(
+    f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
+    height=200,
+    value=file_code if file_code else default_code,
+    key="main_code_input"
+)
 
 run_clicked = st.button("Run Quantum Security Analysis")
 
@@ -84,18 +71,19 @@ if "run_analysis" not in st.session_state:
     st.session_state["run_analysis"] = False
 if "last_code" not in st.session_state:
     st.session_state["last_code"] = ""
+if "last_lang" not in st.session_state:
+    st.session_state["last_lang"] = language
 
 if run_clicked:
     st.session_state["run_analysis"] = True
     st.session_state["last_code"] = code_input
-elif st.session_state["last_code"] != code_input:
+    st.session_state["last_lang"] = language
+elif st.session_state["last_code"] != code_input or st.session_state["last_lang"] != language:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
-    # Extract logic expressions AND add all code lines for robust pattern detection
     logic_exprs = extract_logic_expressions(code_input, language=language)
-    all_code_lines = [line for line in code_input.split('\n') if line.strip()]
-    patterns = detect_patterns(logic_exprs + all_code_lines, language=language)
+    patterns = detect_patterns(logic_exprs, language=language)
 
     def pattern_label(p):
         return getattr(p, "name", str(p))
@@ -118,7 +106,7 @@ if st.session_state.get("run_analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # Pattern-specific quantum input and analysis
+    # --- Pattern-specific quantum input and analysis ---
     if any(pattern_label(p) == "THREE_XOR" for p in detected):
         st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
         a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
