@@ -29,18 +29,12 @@ EXT_MAP = {
     ".sol": "solidity",
 }
 
-# Default inputs used for benchmark patterns (for display)
-BENCHMARK_DEFAULT_INPUTS = {
-    "XOR": "A=1, B=1",
-    "THREE_XOR": "A=1, B=1, C=1",
-    "AND": "A=1, B=1",
-    "OR": "A=1, B=1",
-    "TIME_BOMB": "Timestamp=1799999999",
-    "ARITHMETIC": "Val1=13, Val2=7",
-    "CONTROL_FLOW": "N/A",
-    "HARDCODED_CREDENTIAL": "N/A",
-    "WEB_BACKDOOR": "N/A",
-}
+# Rescale raw quantum scores for better UI spread
+def rescale_percentage(raw_score, raw_min=0.47, raw_max=0.56):
+    clamped = max(min(raw_score, raw_max), raw_min)
+    norm = (clamped - raw_min) / (raw_max - raw_min)
+    return f"{norm * 100:.1f}%"
+
 
 # --- File upload and auto language detection ---
 st.markdown("**Upload a code file (optional):**")
@@ -98,46 +92,39 @@ if run_clicked:
 elif st.session_state["last_code"] != code_input or st.session_state["last_lang"] != language:
     st.session_state["run_analysis"] = False
 
-# ------------- Benchmark: Show Quantum Scores for all patterns -------------
-if st.button("🚦 Show Quantum Pattern Benchmark"):
-    pattern_list = [
-        "XOR", "THREE_XOR", "AND", "OR",
-        "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
-        "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"
-    ]
-    results = []
-    for p in pattern_list:
-        try:
-            circuit = build_quantum_circuit(p)
-            score, _ = run_quantum_analysis(circuit, p)
-            pct, risk = format_score(score)
-        except Exception:
-            pct, risk = "-", "N/A"
-        results.append({
-            "Pattern": p,
-            "Default Inputs": BENCHMARK_DEFAULT_INPUTS.get(p, "N/A"),
-            "Quantum Score": pct,
-            "Risk": risk
-        })
+# Always show benchmark table and chart (fix vanished issue)
+pattern_list = [
+    "XOR", "THREE_XOR", "AND", "OR",
+    "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
+    "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"
+]
 
-    df = pd.DataFrame(results)
-    st.subheader("🚦 Quantum Pattern Benchmark Results")
-    st.dataframe(df, use_container_width=True)
+results = []
+for p in pattern_list:
+    try:
+        circuit = build_quantum_circuit(p)
+        score, _ = run_quantum_analysis(circuit, p)
+        pct, risk = format_score(score)
+        pct = rescale_percentage(score)  # Use rescaled percentage for UI
+    except Exception:
+        pct, risk = "-", "N/A"
+    results.append({"Pattern": p, "Quantum Score": pct, "Risk": risk})
 
-    st.info(
-        "ℹ️ **Note:** Quantum Pattern Benchmark scores are computed with fixed default inputs shown above. "
-        "Your live Quantum Pattern Match Score below uses inputs you select, so scores may differ."
-    )
+df = pd.DataFrame(results)
+st.subheader("🚦 Quantum Pattern Benchmark Results")
+st.dataframe(df, use_container_width=True)
 
-    # --- Small horizontal bar chart (UI fix) ---
-    fig, ax = plt.subplots(figsize=(8, 3))
-    plot_vals = [float(x['Quantum Score'][:-1]) if x['Quantum Score'] != "-" else 0 for x in results]
-    ax.bar(pattern_list, plot_vals)
-    ax.set_ylabel("Quantum Score (%)", fontsize=12)
-    ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
-    plt.tight_layout()
-    st.pyplot(fig)
-    st.markdown("---")
+# Small horizontal bar chart with rescaled scores
+fig, ax = plt.subplots(figsize=(8, 3))
+plot_vals = [
+    float(r['Quantum Score'][:-1]) if r['Quantum Score'] != "-" else 0 for r in results
+]
+ax.bar(pattern_list, plot_vals)
+ax.set_ylabel("Quantum Score (%)", fontsize=12)
+ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
+plt.tight_layout()
+st.pyplot(fig)
+st.markdown("---")
 
 # ------------- Main Analysis Section -------------
 if st.session_state.get("run_analysis"):
@@ -166,7 +153,6 @@ if st.session_state.get("run_analysis"):
         st.write("No explicit logic expressions parsed.")
 
     # Pattern-specific quantum input and analysis (expanded for all mapped patterns)
-    # Prioritize patterns in this order:
     priority = ["THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"]
     chosen_pattern = next((pattern_label(p) for p in detected if pattern_label(p) in priority), None)
     user_inputs = {}
@@ -193,13 +179,15 @@ if st.session_state.get("run_analysis"):
     if circuit is not None:
         score, measurements = run_quantum_analysis(circuit, chosen_pattern)
         pct, risk_label = format_score(score)
-        st.metric("Quantum Pattern Match Score", pct, risk_label)
+        # Use original score for risk, rescaled pct for display
+        pct_display = rescale_percentage(score)
+        st.metric("Quantum Pattern Match Score", pct_display, risk_label)
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
-        # Optional: quantum state visualization with fixed size
+        # Optional: quantum state visualization
         try:
             buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", width=600)
+            st.image(buf, caption="Quantum State Probabilities", use_container_width=True, width=600)
         except Exception:
             pass
         with st.spinner("Gemini is explaining the result..."):
