@@ -3,16 +3,17 @@
 from tree_sitter import Parser
 from tree_sitter_language_pack import get_parser
 
-# --- Language map (expand as needed) ---
+# Map supported languages to their Tree-sitter parsers
 LANGUAGE_MAP = {
     "python": get_parser("python"),
     "c": get_parser("c"),
+    # Add more: "javascript", "java", etc. (if needed)
 }
 
 def extract_logic_expressions(code, language="python"):
     """
-    Extract if/conditional expressions from the code using Tree-sitter AST.
-    Supports: Python, C.
+    Extract conditional/logic expressions from code using Tree-sitter AST.
+    Supports: Python, C (expand as needed).
     Returns: list of expressions as strings
     """
     if language not in LANGUAGE_MAP:
@@ -28,7 +29,6 @@ def extract_logic_expressions(code, language="python"):
     def walk_python(node):
         # Python: Look for if_statement nodes
         if node.type == "if_statement":
-            # Get the 'test' child (the condition)
             for child in node.children:
                 if child.type == "test":
                     logic_expressions.append(code[child.start_byte:child.end_byte])
@@ -44,30 +44,37 @@ def extract_logic_expressions(code, language="python"):
         for child in node.children:
             walk_c(child)
 
-    # Choose walker by language
+    # Dispatch by language
     if language == "python":
         walk_python(root)
     elif language == "c":
         walk_c(root)
     else:
-        pass  # Add more languages as needed
+        # You can add other languages here
+        pass
 
     return [expr.strip() for expr in logic_expressions]
 
-# --- Test Example ---
-
+# --- Demo/Test ---
 if __name__ == "__main__":
     py_code = '''
 def foo(a, b):
     if (a ^ b) == 42:
         bar()
+    if a and b:
+        baz()
 '''
+
     c_code = '''
 int main(int user_id, int timestamp) {
     if ((user_id ^ timestamp) == 0xDEADBEEF) {
         grant_admin();
     }
+    if ((user_id & 1) == 1) {
+        safe_access();
+    }
 }
 '''
-    print("Python extracted:", extract_logic_expressions(py_code, "python"))
-    print("C extracted:", extract_logic_expressions(c_code, "c"))
+
+    print("Python logic expressions:", extract_logic_expressions(py_code, "python"))
+    print("C logic expressions:", extract_logic_expressions(c_code, "c"))
