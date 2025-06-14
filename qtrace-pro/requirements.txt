@@ -2,3 +2,5 @@ streamlit
 cirq
 google-generativeai
 numpy
+tree-sitter
+tree-sitter-language-pack
