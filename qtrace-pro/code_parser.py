@@ -1,74 +1,44 @@
 # code_parser.py
 
-from tree_sitter import Parser
-from tree_sitter_language_pack import get_language  # ← use get_language (not get_parser)
+from tree_sitter import Language, Parser
+
+# Load Python language
+PY_LANGUAGE = Language('python')
 
 LANGUAGE_MAP = {
-    "python": get_language("python"),
-    "c": get_language("c"),
-    # Add more: "javascript", "java", etc. if you want
+    'python': PY_LANGUAGE,
+    # Add more languages as needed
 }
 
-def extract_logic_expressions(code, language="python"):
-    """
-    Extracts logic/conditional expressions from code using Tree-sitter AST.
-    Supports: Python, C. Returns a list of expressions as strings.
-    """
-    if language not in LANGUAGE_MAP:
-        raise ValueError(f"Unsupported language: {language}")
+def extract_logic_expressions(code, language='python'):
+    lang = LANGUAGE_MAP.get(language)
+    if not lang:
+        return []
 
-    parser = Parser()
-    parser.set_language(LANGUAGE_MAP[language])
-    tree = parser.parse(code.encode() if isinstance(code, str) else code)
-    root = tree.root_node
+    try:
+        parser = Parser(lang)  # ✅ Pass language directly
+        tree = parser.parse(bytes(code, 'utf-8'))
+        root_node = tree.root_node
 
-    logic_expressions = []
+        expressions = []
 
-    def walk_python(node):
-        # Look for if_statement nodes (Python)
-        if node.type == "if_statement":
+        def walk(node):
+            if node.type in ['binary_expression', 'parenthesized_expression']:
+                expr = code[node.start_byte:index_end(node)]
+                op = None
+                for child in node.children:
+                    if child.type in ['^', '&', '|']:
+                        op = code[child.start_byte:child.end_byte]
+                if op:
+                    expressions.append(expr.strip())
             for child in node.children:
-                if child.type == "test":
-                    logic_expressions.append(code[child.start_byte:child.end_byte])
-        for child in node.children:
-            walk_python(child)
+                walk(child)
 
-    def walk_c(node):
-        # Look for if_statement nodes (C)
-        if node.type == "if_statement":
-            for child in node.children:
-                if child.type == "parenthesized_expression":
-                    logic_expressions.append(code[child.start_byte:child.end_byte])
-        for child in node.children:
-            walk_c(child)
+        def index_end(n):
+            return n.end_byte
 
-    if language == "python":
-        walk_python(root)
-    elif language == "c":
-        walk_c(root)
-
-    return [expr.strip() for expr in logic_expressions]
-
-# --- Demo/Test ---
-if __name__ == "__main__":
-    py_code = '''
-def foo(a, b):
-    if (a ^ b) == 42:
-        bar()
-    if a and b:
-        baz()
-'''
-
-    c_code = '''
-int main(int user_id, int timestamp) {
-    if ((user_id ^ timestamp) == 0xDEADBEEF) {
-        grant_admin();
-    }
-    if ((user_id & 1) == 1) {
-        safe_access();
-    }
-}
-'''
-
-    print("Python logic expressions:", extract_logic_expressions(py_code, "python"))
-    print("C logic expressions:", extract_logic_expressions(c_code, "c"))
+        walk(root_node)
+        return list(set(expressions))
+    except Exception as e:
+        print(f"Error parsing code: {e}")
+        return []
