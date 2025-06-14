@@ -1,6 +1,6 @@
-streamlit==1.36.0
+streamlit
+tree-sitter>=0.22.1
+tree-sitter-language-pack
 cirq
 google-generativeai
 numpy
-tree-sitter==0.20.4
-tree-sitter-language-pack
