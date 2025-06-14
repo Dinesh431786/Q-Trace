@@ -1,45 +1,67 @@
 # pattern_matcher.py
 
 import re
-from enum import Enum, auto
 
-class LogicPattern(Enum):
-    XOR = auto()
-    AND = auto()
-    OR = auto()
-    THREE_XOR = auto()
-    TIME_BOMB = auto()
-    CONTROL_FLOW = auto()
-    UNKNOWN = auto()
+class LogicPattern:
+    XOR = "XOR"
+    THREE_XOR = "THREE_XOR"
+    AND = "AND"
+    OR = "OR"
+    TIME_BOMB = "TIME_BOMB"
+    CONTROL_FLOW = "CONTROL_FLOW"
+    ARITHMETIC = "ARITHMETIC"
+    MAGIC_CONSTANT = "MAGIC_CONSTANT"
+    UNKNOWN = "UNKNOWN"
 
-def detect_patterns(code):
-    patterns = []
+def detect_patterns(expr_list):
+    """
+    Given a list of extracted logic expressions, return list of detected pattern types.
+    """
+    patterns = set()
+    for expr in expr_list:
+        text = expr.lower()
 
-    # 3-input XOR pattern (Python/C/JS style): (a ^ b ^ c)
-    if re.search(r"\w+\s*\^\s*\w+\s*\^\s*\w+", code):
-        patterns.append(LogicPattern.THREE_XOR)
+        # XOR (3-input or more)
+        if re.search(r'\b[a-z0-9_]+\s*\^\s*[a-z0-9_]+\s*\^\s*[a-z0-9_]+', text):
+            patterns.add(LogicPattern.THREE_XOR)
+        # XOR (2-input)
+        elif '^' in text or 'xor' in text:
+            patterns.add(LogicPattern.XOR)
 
-    # 2-input XOR
-    elif re.search(r"\w+\s*\^\s*\w+", code):
-        patterns.append(LogicPattern.XOR)
+        # AND/OR logic
+        if re.search(r'&', text) or ' and ' in text:
+            patterns.add(LogicPattern.AND)
+        if re.search(r'\|', text) or ' or ' in text:
+            patterns.add(LogicPattern.OR)
 
-    # AND pattern
-    if re.search(r"\w+\s*&\s*\w+", code):
-        patterns.append(LogicPattern.AND)
+        # Arithmetic backdoor pattern (simple)
+        if re.search(r'[+\-*/%]', text) and '==' in text:
+            patterns.add(LogicPattern.ARITHMETIC)
 
-    # OR pattern
-    if re.search(r"\w+\s*\|\s*\w+", code):
-        patterns.append(LogicPattern.OR)
+        # Magic constant
+        if re.search(r'==\s*(0x[a-f0-9]+|\d+|["\'][^"\']+["\'])', text):
+            patterns.add(LogicPattern.MAGIC_CONSTANT)
 
-    # Time Bomb
-    if re.search(r"(date|time|datetime)", code, re.IGNORECASE):
-        patterns.append(LogicPattern.TIME_BOMB)
+        # Time bomb / time-based trigger
+        if any(x in text for x in ['time', 'date', 'datetime', 'timestamp']):
+            patterns.add(LogicPattern.TIME_BOMB)
 
-    # Obfuscated control flow
-    if re.search(r"goto|flag\s*=", code, re.IGNORECASE):
-        patterns.append(LogicPattern.CONTROL_FLOW)
+        # Obfuscated/Control Flow (goto, unreachable, etc.)
+        if any(x in text for x in ['goto', 'unreachable', 'break', 'continue']):
+            patterns.add(LogicPattern.CONTROL_FLOW)
 
-    if not patterns:
-        patterns.append(LogicPattern.UNKNOWN)
+        if not patterns:
+            patterns.add(LogicPattern.UNKNOWN)
 
-    return patterns
+    return list(patterns)
+
+# --- Test Example ---
+if __name__ == "__main__":
+    exprs = [
+        "(a ^ b ^ c) == 42",
+        "datetime.date.today() == datetime.date(2077, 1, 1)",
+        "(user_id & role) == 7",
+        "if (a + b) % 13 == 5",
+        "goto error_handler"
+    ]
+    print("Patterns detected:", detect_patterns(exprs))
