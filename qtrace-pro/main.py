@@ -107,20 +107,14 @@ if st.button("🚦 Show Quantum Pattern Benchmark"):
     st.subheader("🚦 Quantum Pattern Benchmark Results")
     st.dataframe(df, use_container_width=True)
 
-    # --- Compact horizontal bar chart with clear labeling ---
-    fig, ax = plt.subplots(figsize=(7, 2.3))
+    # --- Bar chart (compact UI) ---
+    fig, ax = plt.subplots(figsize=(8, 3))
     plot_vals = [float(x['Quantum Score'][:-1]) if x['Quantum Score'] != "-" else 0 for x in results]
-    bars = ax.bar(pattern_list, plot_vals, color="#1e88e5")
-    ax.set_ylabel("Quantum Score (%)", fontsize=11)
-    ax.set_xticklabels(pattern_list, rotation=28, ha="right", fontsize=9)
-    ax.set_ylim(0, 100)
-    for bar, val in zip(bars, plot_vals):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f"{val:.1f}%", ha='center', va='bottom', fontsize=8)
+    ax.bar(pattern_list, plot_vals)
+    ax.set_ylabel("Quantum Score (%)", fontsize=12)
+    ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
     plt.tight_layout()
     st.pyplot(fig)
-    st.caption("""
-    <b>How to interpret:</b> The benchmark shows typical quantum anomaly risk scores for each supported adversarial logic pattern, when mapped to a quantum circuit model. Higher = more anomalous/risky. Only applies to patterns supported by quantum simulation.
-    """, unsafe_allow_html=True)
     st.markdown("---")
 
 # ------------- Main Analysis Section -------------
@@ -170,7 +164,6 @@ if st.session_state.get("run_analysis"):
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
         user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
-    # Add more UI if needed
 
     circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
 
@@ -180,19 +173,28 @@ if st.session_state.get("run_analysis"):
         st.metric("Quantum Pattern Match Score", pct, risk_label)
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
-
-        # --- ADVANCED: Show quantum state chart ONLY if circuit is mapped ---
-        with st.expander("Advanced: Quantum State Probabilities (for researchers)", expanded=False):
-            st.caption("""
-            The 'Quantum State Probabilities' chart below shows measurement probabilities for each quantum state (basis vector) of the simulated circuit.
-            Most users can ignore this; it's for advanced users only.
+        # --- Advanced Quantum State Chart + Explanation ---
+        with st.expander("🔬 Advanced: Quantum State Probabilities (What does this mean?)", expanded=False):
+            st.markdown("""
+- **This chart shows the probability of each quantum state when simulating your logic pattern as a quantum circuit.**
+- **A single tall bar:** A unique outcome (simple logic, e.g., XOR, AND).
+- **Multiple bars:** Superposition or interference (complex or obfuscated logic).
+- For most users, focus on the **Quantum Pattern Match Score** above. This visualization is for researchers or advanced analysis.
             """)
             try:
                 buf = visualize_quantum_state(circuit)
                 st.image(buf, caption="Quantum State Probabilities", use_container_width=True)
+                # --- Gemini Vision multimodal analysis (if available) ---
+                # from PIL import Image
+                # image = Image.open(buf)
+                # gemini_prompt = f'''
+                # The following image is a quantum state probability histogram for logic pattern: {chosen_pattern}.
+                # Please explain what the distribution of bars means. Is this a unique state or multiple outcomes? What does it say about security risk?
+                # '''
+                # gemini_response = gemini_analyze_image(image, gemini_prompt)
+                # st.info("**Gemini Analysis of Quantum Chart:**\n" + gemini_response)
             except Exception:
                 st.warning("Quantum state visualization unavailable for this pattern.")
-
         with st.spinner("Gemini is explaining the result..."):
             explanation = explain_result(score, chosen_pattern, code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
