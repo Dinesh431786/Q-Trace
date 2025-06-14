@@ -87,7 +87,6 @@ elif st.session_state["last_code"] != code_input or st.session_state["last_lang"
 
 # ------------- Benchmark: Show Quantum Scores for all patterns -------------
 if st.button("🚦 Show Quantum Pattern Benchmark"):
-    from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
     pattern_list = [
         "XOR", "THREE_XOR", "AND", "OR",
         "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
@@ -143,8 +142,8 @@ if st.session_state.get("run_analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # Pattern-specific quantum input and analysis (expanded for all mapped patterns)
-    # If there are multiple, prioritize THREE_XOR > XOR > AND > OR > TIME_BOMB > ARITHMETIC > CONTROL_FLOW > HARDCODED_CREDENTIAL > WEB_BACKDOOR
+    # --- Pattern-specific quantum input and analysis (expanded for all mapped patterns) ---
+    # Priority for the quantum circuit: THREE_XOR > XOR > AND > OR > TIME_BOMB > ARITHMETIC > CONTROL_FLOW > HARDCODED_CREDENTIAL > WEB_BACKDOOR
     priority = ["THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"]
     chosen_pattern = next((pattern_label(p) for p in detected if pattern_label(p) in priority), None)
     user_inputs = {}
@@ -165,7 +164,6 @@ if st.session_state.get("run_analysis"):
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
         user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
-    # Add UI for other advanced patterns as needed
 
     circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
 
@@ -178,7 +176,22 @@ if st.session_state.get("run_analysis"):
         # Optional: quantum state visualization
         try:
             buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", use_container_width=False, width=350)
+            st.image(buf, caption="Quantum State Probabilities", use_container_width=True, width=350)
+            # Interpretation help for users:
+            st.caption("""
+            **What does this chart mean?**
+            - Each bar shows how likely the quantum circuit is to end up in a particular state after simulating your code's logic pattern.
+            - A **tall bar at one state** (especially at the highest number) means your code is a strong match for a risky or backdoor logic pattern.
+            - **More spread out bars** mean the pattern is less clear, but could still be risky.
+            - The risk label above tells you how urgently you should review this code!
+            """)
+            with st.expander("ℹ️ What does this chart mean?"):
+                st.markdown("""
+                - Each bar = likelihood of the code matching a risky pattern in the quantum simulation.
+                - Tall bar at the right = stronger match, higher risk.
+                - Multiple bars or mixed = unclear or obfuscated logic, review recommended.
+                - See the "Quantum Pattern Match Score" and risk label above for your action step!
+                """)
         except Exception:
             pass
         with st.spinner("Gemini is explaining the result..."):
