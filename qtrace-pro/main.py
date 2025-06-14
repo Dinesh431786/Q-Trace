@@ -1,4 +1,3 @@
-
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -88,7 +87,6 @@ elif st.session_state["last_code"] != code_input or st.session_state["last_lang"
 
 # ------------- Benchmark: Show Quantum Scores for all patterns -------------
 if st.button("🚦 Show Quantum Pattern Benchmark"):
-    from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
     pattern_list = [
         "XOR", "THREE_XOR", "AND", "OR",
         "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
@@ -145,7 +143,6 @@ if st.session_state.get("run_analysis"):
         st.write("No explicit logic expressions parsed.")
 
     # Pattern-specific quantum input and analysis (expanded for all mapped patterns)
-    # If there are multiple, prioritize THREE_XOR > XOR > AND > OR > TIME_BOMB > ARITHMETIC > CONTROL_FLOW > HARDCODED_CREDENTIAL > WEB_BACKDOOR
     priority = ["THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"]
     chosen_pattern = next((pattern_label(p) for p in detected if pattern_label(p) in priority), None)
     user_inputs = {}
@@ -176,12 +173,20 @@ if st.session_state.get("run_analysis"):
         st.metric("Quantum Pattern Match Score", pct, risk_label)
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
-        # Optional: quantum state visualization
-        try:
-            buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", use_container_width=False, width=350)
-        except Exception:
-            pass
+
+        # --- ADVANCED: Quantum state visualization (collapsed by default) ---
+        with st.expander("Advanced: Quantum Circuit State (for researchers)", expanded=False):
+            st.caption("""
+            The 'Quantum State Probabilities' chart shows the final measurement outcome of the simulated quantum logic circuit.
+            Each 'state' is a possible quantum state (in binary). This is for advanced users and does *not* indicate security risk or anomaly level.
+            For most users, you can ignore this section.
+            """)
+            try:
+                buf = visualize_quantum_state(circuit)
+                st.image(buf, caption="Quantum State Probabilities", use_container_width=True)
+            except Exception:
+                st.warning("Quantum state visualization unavailable for this pattern.")
+
         with st.spinner("Gemini is explaining the result..."):
             explanation = explain_result(score, chosen_pattern, code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
