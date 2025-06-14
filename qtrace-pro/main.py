@@ -15,6 +15,8 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 )
 
 # --- UI code input ---
+language = st.selectbox("Select language:", ["python", "c"], index=0)
+
 code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
@@ -27,7 +29,6 @@ def triple_check(a, b, c):
     key="main_code_input"
 )
 
-# --- Run button with session state flag ---
 run_clicked = st.button("Run Quantum Security Analysis")
 
 if "run_analysis" not in st.session_state:
@@ -42,17 +43,17 @@ elif st.session_state["last_code"] != code_input:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
-    # --- Extract logic expressions with AST (multi-language) ---
-    logic_exprs = extract_logic_expressions(code_input)
+    # --- Use language-aware extraction ---
+    logic_exprs = extract_logic_expressions(code_input, language=language)
     patterns = detect_patterns(logic_exprs)
     
-    # Fix: detected can contain both enums and strings. Only show enums with name, else str.
+    # Pattern label helper
     def pattern_label(p):
-        return p.name if hasattr(p, "name") else str(p)
+        return getattr(p, "name", str(p))
 
     detected = [
         p for p in patterns
-        if (hasattr(p, "name") and p != LogicPattern.UNKNOWN) or (isinstance(p, str) and p != "UNKNOWN")
+        if ((hasattr(p, "name") and p != LogicPattern.UNKNOWN) or (isinstance(p, str) and p != "UNKNOWN"))
     ]
 
     st.subheader("🔍 Detected Pattern(s)")
