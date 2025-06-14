@@ -7,132 +7,134 @@ class LogicPattern:
     THREE_XOR = "THREE_XOR"
     AND = "AND"
     OR = "OR"
-    TIME_BOMB = "TIME_BOMB"
-    CONTROL_FLOW = "CONTROL_FLOW"
     ARITHMETIC = "ARITHMETIC"
     MAGIC_CONSTANT = "MAGIC_CONSTANT"
-    HARDCODED_CREDENTIAL = "HARDCODED_CREDENTIAL"
+    TIME_BOMB = "TIME_BOMB"
+    CONTROL_FLOW = "CONTROL_FLOW"
     DANGEROUS_FUNCTION = "DANGEROUS_FUNCTION"
+    HARDCODED_CREDENTIAL = "HARDCODED_CREDENTIAL"
     UNSAFE_DESERIALIZATION = "UNSAFE_DESERIALIZATION"
+    OBFUSCATED_VARIABLES = "OBFUSCATED_VARIABLES"
     INSECURE_RANDOM = "INSECURE_RANDOM"
     INTEGER_OVERFLOW = "INTEGER_OVERFLOW"
     UNRESTRICTED_FILE_WRITE = "UNRESTRICTED_FILE_WRITE"
-    UNSAFE_SMART_CONTRACT = "UNSAFE_SMART_CONTRACT"
+    PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION"
     WEB_BACKDOOR = "WEB_BACKDOOR"
-    PRIV_ESC = "PRIVILEGE_ESCALATION"
-    UNVALIDATED_INPUT = "UNVALIDATED_INPUT"
-    OBFUSCATED_VARIABLES = "OBFUSCATED_VARIABLES"
     UNKNOWN = "UNKNOWN"
 
-def detect_patterns(expr_list, language="python"):
+def detect_patterns(expr_list, language="generic"):
     """
     Given a list of extracted logic expressions, return list of detected pattern types.
-    language: python, c, javascript, java, go, rust, solidity
+    Optionally use language for language-specific heuristics.
     """
     patterns = set()
     for expr in expr_list:
         text = expr.lower()
-
-        # XOR (3-input or more)
+        # --- Cross-language patterns ---
         if re.search(r'\b[a-z0-9_]+\s*\^\s*[a-z0-9_]+\s*\^\s*[a-z0-9_]+', text):
             patterns.add(LogicPattern.THREE_XOR)
         elif '^' in text or 'xor' in text:
             patterns.add(LogicPattern.XOR)
-
-        # AND/OR logic (works for most C-like languages)
-        if re.search(r'&', text) or ' and ' in text or '&&' in text:
+        if re.search(r'&', text) or ' and ' in text:
             patterns.add(LogicPattern.AND)
-        if re.search(r'\|', text) or ' or ' in text or '||' in text:
+        if re.search(r'\|', text) or ' or ' in text:
             patterns.add(LogicPattern.OR)
-
-        # Arithmetic backdoor pattern
         if re.search(r'[+\-*/%]', text) and '==' in text:
             patterns.add(LogicPattern.ARITHMETIC)
-
-        # Magic constant
         if re.search(r'==\s*(0x[a-f0-9]+|\d+|["\'][^"\']+["\'])', text):
             patterns.add(LogicPattern.MAGIC_CONSTANT)
-
-        # Time bomb / time-based trigger
-        if any(x in text for x in ['time', 'date', 'datetime', 'timestamp', 'block.timestamp', 'now()']):
+        if any(x in text for x in ['time', 'date', 'datetime', 'timestamp']):
             patterns.add(LogicPattern.TIME_BOMB)
-
-        # Control flow/Obfuscation
-        if any(x in text for x in ['goto', 'unreachable', 'break', 'continue', 'switch', 'case', 'default']):
+        if any(x in text for x in ['goto', 'unreachable', 'break', 'continue']):
             patterns.add(LogicPattern.CONTROL_FLOW)
 
-        # Hardcoded credential
-        if re.search(r'(password|passwd|secret|api_key|token|key)\s*=\s*["\']', text, re.IGNORECASE):
-            patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
-
-        # Dangerous functions
-        if re.search(r'(eval|exec|pickle|unpickle|load|loads|deserialize|os\.system|subprocess|popen|system|Runtime\.getRuntime|Function\()', text):
-            patterns.add(LogicPattern.DANGEROUS_FUNCTION)
-
-        # Unsafe deserialization (Python, Java, JS, Go, etc)
-        if re.search(r'(pickle|unpickle|ObjectInputStream|JSON\.parse|require\(|load|loads|deserialize)', text):
-            patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
-
-        # Insecure randomness
-        if re.search(r'random\.random|Math\.random|rand\(', text):
-            patterns.add(LogicPattern.INSECURE_RANDOM)
-
-        # Integer overflow
-        if re.search(r'\+=|-=|\*=|/=|%=', text) and ("max" in text or "min" in text):
-            patterns.add(LogicPattern.INTEGER_OVERFLOW)
-
-        # Unrestricted file write
-        if re.search(r'open\s*\(.*w', text) and ("user" in text or "input" in text):
-            patterns.add(LogicPattern.UNRESTRICTED_FILE_WRITE)
-
-        # Unvalidated input
-        if re.search(r'input\(', text) or "request.get" in text or "prompt(" in text:
-            patterns.add(LogicPattern.UNVALIDATED_INPUT)
-
-        # Obfuscated variable names
-        if re.search(r'[a-z]{1,2}\d{2,}', text):  # e.g. a12, x99, etc
-            patterns.add(LogicPattern.OBFUSCATED_VARIABLES)
-
-        # --- Language-specific rules ---
-        if language == "solidity":
-            if "tx.origin" in text or "call.value" in text or "delegatecall" in text:
-                patterns.add(LogicPattern.UNSAFE_SMART_CONTRACT)
-
-        if language == "javascript":
-            if "document.write" in text or "innerhtml" in text or "eval(" in text:
-                patterns.add(LogicPattern.WEB_BACKDOOR)
-
+        # --- Language & risk-specific enterprise patterns ---
+        # Dangerous function calls
+        if language in ["python", "generic"]:
+            if re.search(r'os\.system|subprocess\.popen|eval\(', text):
+                patterns.add(LogicPattern.DANGEROUS_FUNCTION)
+            if re.search(r'pickle\.load|eval\(|marshal\.loads', text):
+                patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
+            if re.search(r'(["\'])[A-Za-z0-9]{8,}(["\'])', text) and "key" in text:
+                patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
+            if re.search(r'random\.random|random\.randint|random\.choice', text):
+                patterns.add(LogicPattern.INSECURE_RANDOM)
         if language == "java":
-            if "privilegedaction" in text or "setaccessible(true)" in text:
-                patterns.add(LogicPattern.PRIV_ESC)
-
+            if "processbuilder" in text or "runtime.getruntime().exec" in text:
+                patterns.add(LogicPattern.DANGEROUS_FUNCTION)
+            if "objectinputstream" in text and "readobject" in text:
+                patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
+            if re.search(r'string\s+[a-z]\s*=', expr, re.IGNORECASE):
+                patterns.add(LogicPattern.OBFUSCATED_VARIABLES)
+            if re.search(r'new\s+random\(', text):
+                patterns.add(LogicPattern.INSECURE_RANDOM)
+            if re.search(r'\bapi[_\-]?key\b', text) or re.search(r'private\s+static\s+final\s+string\s+\w+\s*=', text):
+                patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
+            if "filewriter" in text:
+                patterns.add(LogicPattern.UNRESTRICTED_FILE_WRITE)
+            if "parseint" in text and "*" in text:
+                patterns.add(LogicPattern.INTEGER_OVERFLOW)
+            if re.search(r'userinput\.equals\(["\']admin["\']\)', text):
+                patterns.add(LogicPattern.PRIVILEGE_ESCALATION)
+        if language == "javascript":
+            if re.search(r'eval\(|child_process\.exec|document\.cookie', text):
+                patterns.add(LogicPattern.DANGEROUS_FUNCTION)
+            if re.search(r'crypto\.randombytes|math\.random', text):
+                patterns.add(LogicPattern.INSECURE_RANDOM)
+            if re.search(r'process\.env\.[a-z_]+', text):
+                patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
+            if re.search(r'fs\.writefile', text):
+                patterns.add(LogicPattern.UNRESTRICTED_FILE_WRITE)
+        if language == "solidity":
+            if re.search(r'(tx\.origin|block\.timestamp)', text):
+                patterns.add(LogicPattern.TIME_BOMB)
+            if re.search(r'private\s+[a-z0-9_]+\s*=', text):
+                patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
+        if language in ["c", "cpp"]:
+            if re.search(r'system\(', text) or re.search(r'popen\(', text):
+                patterns.add(LogicPattern.DANGEROUS_FUNCTION)
+            if re.search(r'gets\(', text) or re.search(r'scanf\(', text):
+                patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
+        # Go/Rust (basic)
         if language == "go":
-            if "exec.command" in text or "os.exec" in text:
+            if re.search(r'os\.exec|syscall', text):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
-
         if language == "rust":
-            if "unsafe" in text:
+            if re.search(r'std::process::command', text):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
 
+        # Web backdoor / suspicious route
+        if re.search(r'debug|admin|root|backdoor', text) and ('if' in text or 'route' in text):
+            patterns.add(LogicPattern.WEB_BACKDOOR)
+        
+        # Generic obfuscation (single char vars)
+        if re.search(r'\b[a-z]\s*=', expr, re.IGNORECASE) and len(expr) < 60:
+            patterns.add(LogicPattern.OBFUSCATED_VARIABLES)
+        
     if not patterns:
         patterns.add(LogicPattern.UNKNOWN)
-
     return list(patterns)
 
 # --- Test Example ---
 if __name__ == "__main__":
+    # Test all main patterns on a multi-language set of expressions
     exprs = [
         "(a ^ b ^ c) == 42",
         "datetime.date.today() == datetime.date(2077, 1, 1)",
         "(user_id & role) == 7",
         "if (a + b) % 13 == 5",
         "goto error_handler",
-        'api_key = "SECRET"',
-        "os.system('rm -rf /')",
-        "tx.origin == msg.sender",  # Solidity
-        "document.write('hacked!')",  # JS
-        "PrivilegedAction.run()"  # Java
+        'os.system("ls")',
+        'ProcessBuilder("bash", "-c", "rm -rf /")',
+        'private static final String API_KEY = "XYZ12345";',
+        'ObjectInputStream ois = new ObjectInputStream(f); ois.readObject();',
+        'eval(userInput)',
+        'random.randint(0,100)',
+        'FileWriter("/tmp/output.txt")',
+        'if(userInput.equals("admin")){ ... }',
+        'route("/debug")',
+        'tx.origin'
     ]
-    print("Patterns detected:", detect_patterns(exprs, language="python"))
-    print("Patterns detected (solidity):", detect_patterns(exprs, language="solidity"))
-    print("Patterns detected (javascript):", detect_patterns(exprs, language="javascript"))
+    for lang in ["python", "c", "java", "javascript", "solidity"]:
+        print(f"\n--- Language: {lang} ---")
+        print("Patterns detected:", detect_patterns(exprs, language=lang))
