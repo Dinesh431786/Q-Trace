@@ -3,22 +3,31 @@ from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
 from quantum_engine import (
     build_quantum_circuit, run_quantum_analysis, format_score, circuit_to_text,
-    visualize_quantum_state # (optional: no-op if not used)
+    visualize_quantum_state
 )
 from gemini_explainer import explain_result
-
 import pandas as pd
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Q-Trace Pro", layout="wide")
 st.title("🌀 Q-Trace Pro – Quantum Logic Anomaly Detector")
-st.markdown("""
+st.markdown(
+    """
 Detect hidden adversarial logic in code using **quantum computing** and **AI explanations**.
 Supports XOR, AND, OR, 3-input XOR, time-based logic, overflow, hardcoded credentials, privilege escalation, and more.
-""")
+"""
+)
 
 LANGUAGES = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
-EXT_MAP = {".py": "python", ".c": "c", ".js": "javascript", ".java": "java", ".go": "go", ".rs": "rust", ".sol": "solidity"}
+EXT_MAP = {
+    ".py": "python",
+    ".c": "c",
+    ".js": "javascript",
+    ".java": "java",
+    ".go": "go",
+    ".rs": "rust",
+    ".sol": "solidity",
+}
 
 # --- File upload and auto language detection ---
 st.markdown("**Upload a code file (optional):**")
@@ -32,7 +41,8 @@ def triple_check(a, b, c):
     if (a ^ b ^ c) == 42:
         get_admin_shell()
 """
-detected_lang, file_code = None, None
+detected_lang = None
+file_code = None
 
 if uploaded_file:
     file_code = uploaded_file.read().decode(errors="ignore")
@@ -45,11 +55,13 @@ lang_index = 0
 if detected_lang and detected_lang in LANGUAGES:
     lang_index = LANGUAGES.index(detected_lang)
 
+# --- Language selection ---
 language = st.selectbox(
     "Select language:", LANGUAGES, index=lang_index,
     help="Auto-set by file upload if possible. You can override manually."
 )
 
+# --- Code input (from file or textbox) ---
 code_input = st.text_area(
     f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
     height=200,
@@ -73,79 +85,39 @@ if run_clicked:
 elif st.session_state["last_code"] != code_input or st.session_state["last_lang"] != language:
     st.session_state["run_analysis"] = False
 
-# --- Quantum Pattern Benchmark Harness ---
-BENCHMARK_PATTERNS = [
-    "XOR", "THREE_XOR", "AND", "OR", "TIME_BOMB",
-    "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"
-]
+# ------------- Benchmark: Show Quantum Scores for all patterns -------------
+if st.button("🚦 Show Quantum Pattern Benchmark"):
+    from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
+    pattern_list = [
+        "XOR", "THREE_XOR", "AND", "OR",
+        "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
+        "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"
+    ]
+    results = []
+    for p in pattern_list:
+        try:
+            circuit = build_quantum_circuit(p)
+            score, _ = run_quantum_analysis(circuit, p)
+            pct, risk = format_score(score)
+        except Exception:
+            pct, risk = "-", "N/A"
+        results.append({"Pattern": p, "Quantum Score": pct, "Risk": risk})
 
-def get_benchmark_scores():
-    # Example: Simulate scores for each pattern (replace with real scoring if needed)
-    # You can adjust these with your real quantum_engine scoring logic
-    quantum_inputs = {
-        "XOR":  {"a_val": 1, "b_val": 1},
-        "THREE_XOR": {"a_val": 1, "b_val": 1, "c_val": 1},
-        "AND":  {"a_val": 1, "b_val": 1},
-        "OR":   {"a_val": 1, "b_val": 1},
-        "TIME_BOMB": {"timestamp_val": 1799999999},
-        "ARITHMETIC": {"val1": 13, "val2": 7},
-        "CONTROL_FLOW": {},
-        "HARDCODED_CREDENTIAL": {},
-        "WEB_BACKDOOR": {}
-    }
-    scores = []
-    for pat in BENCHMARK_PATTERNS:
-        circuit = build_quantum_circuit(pat, **quantum_inputs.get(pat, {}))
-        if circuit is not None:
-            score, _ = run_quantum_analysis(circuit, pat)
-            pct, _ = format_score(score)
-            try:
-                pct_val = float(pct.replace('%',''))
-            except Exception:
-                pct_val = 0.0
-        else:
-            pct_val = 0.0
-        scores.append(pct_val)
-    return scores
+    df = pd.DataFrame(results)
+    st.subheader("🚦 Quantum Pattern Benchmark Results")
+    st.dataframe(df, use_container_width=True)
 
-def get_benchmark_labels():
-    # Use your quantum_engine risk label mapping for the patterns
-    scores = get_benchmark_scores()
-    labels = []
-    for score in scores:
-        if score >= 85:
-            labels.append("HIGH RISK")
-        elif score >= 55:
-            labels.append("MODERATE RISK")
-        else:
-            labels.append("LOW RISK")
-    return labels
+    # --- Small horizontal bar chart (UI fix) ---
+    fig, ax = plt.subplots(figsize=(8, 3))
+    plot_vals = [float(x['Quantum Score'][:-1]) if x['Quantum Score'] != "-" else 0 for x in results]
+    ax.bar(pattern_list, plot_vals)
+    ax.set_ylabel("Quantum Score (%)", fontsize=12)
+    ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
+    plt.tight_layout()
+    st.pyplot(fig)
+    st.markdown("---")
 
-def get_benchmark_df():
-    return pd.DataFrame({
-        "Pattern": BENCHMARK_PATTERNS,
-        "Quantum Score": [f"{s:.1f}%" for s in get_benchmark_scores()],
-        "Risk": get_benchmark_labels()
-    })
-
-st.markdown("🚦 **Quantum Pattern Benchmark Results**")
-col1, col2 = st.columns([1, 1.5])
-benchmark_df = get_benchmark_df()
-with col1:
-    st.dataframe(benchmark_df, hide_index=True, use_container_width=True)
-with col2:
-    plt.figure(figsize=(6, 3))
-    plt.bar(BENCHMARK_PATTERNS, get_benchmark_scores(), width=0.5)
-    plt.xticks(fontsize=11, rotation=22, ha='right')
-    plt.yticks(fontsize=11)
-    plt.ylabel("Quantum Score (%)", fontsize=12)
-    plt.ylim(0, 110)
-    plt.tight_layout(pad=0.9)
-    st.pyplot(plt)
-
-st.divider()
-
-# --- Actual Code Analysis (as before) ---
+# ------------- Main Analysis Section -------------
 if st.session_state.get("run_analysis"):
     logic_exprs = extract_logic_expressions(code_input, language=language)
     patterns = detect_patterns(logic_exprs, language=language)
@@ -171,40 +143,46 @@ if st.session_state.get("run_analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    pattern_name = next((pattern_label(p) for p in detected), None)
+    # Pattern-specific quantum input and analysis (expanded for all mapped patterns)
+    # If there are multiple, prioritize THREE_XOR > XOR > AND > OR > TIME_BOMB > ARITHMETIC > CONTROL_FLOW > HARDCODED_CREDENTIAL > WEB_BACKDOOR
+    priority = ["THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"]
+    chosen_pattern = next((pattern_label(p) for p in detected if pattern_label(p) in priority), None)
     user_inputs = {}
-    if pattern_name == "THREE_XOR":
+
+    if chosen_pattern == "THREE_XOR":
         st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
         user_inputs["a_val"] = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
         user_inputs["b_val"] = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B3_input")
         user_inputs["c_val"] = st.number_input("Input value C (0 or 1):", 0, 1, 1, key="C3_input")
-    elif pattern_name in ["XOR", "AND", "OR"]:
-        st.markdown(f"### ⚛️ Quantum Analysis: {pattern_name} (3 Qubits)")
+    elif chosen_pattern in ["XOR", "AND", "OR"]:
+        st.markdown(f"### ⚛️ Quantum Analysis: {chosen_pattern} (3 Qubits)")
         user_inputs["a_val"] = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A2_input")
         user_inputs["b_val"] = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B2_input")
-    elif pattern_name == "TIME_BOMB":
+    elif chosen_pattern == "TIME_BOMB":
         st.markdown("### ⚛️ Quantum Analysis: Time Bomb Logic")
         user_inputs["timestamp_val"] = st.number_input("Timestamp value:", 0, 2147483647, 1799999999)
-    elif pattern_name == "ARITHMETIC":
+    elif chosen_pattern == "ARITHMETIC":
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
         user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
+    # Add UI for other advanced patterns as needed
 
-    circuit = build_quantum_circuit(pattern_name, **user_inputs)
+    circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
+
     if circuit is not None:
-        score, measurements = run_quantum_analysis(circuit, pattern_name)
+        score, measurements = run_quantum_analysis(circuit, chosen_pattern)
         pct, risk_label = format_score(score)
         st.metric("Quantum Pattern Match Score", pct, risk_label)
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
-        # Optional: quantum state visualization (if implemented)
+        # Optional: quantum state visualization
         try:
             buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities")
+            st.image(buf, caption="Quantum State Probabilities", use_column_width=False, width=350)
         except Exception:
             pass
         with st.spinner("Gemini is explaining the result..."):
-            explanation = explain_result(score, pattern_name, code_input)
+            explanation = explain_result(score, chosen_pattern, code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
     else:
         st.warning(
