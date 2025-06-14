@@ -4,6 +4,13 @@ from code_parser import extract_logic_expressions
 from quantum_engine import build_quantum_circuit, run_quantum_analysis
 from gemini_explainer import explain_result
 from utils import format_score, circuit_to_text
+import os
+
+try:
+    from guesslang import Guess
+    GUESSLANG_AVAILABLE = True
+except ImportError:
+    GUESSLANG_AVAILABLE = False
 
 st.set_page_config(page_title="Q-Trace Pro", layout="wide")
 st.title("🌀 Q-Trace Pro – Quantum Logic Anomaly Detector")
@@ -14,22 +21,62 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
-# Supported languages: add more as you update code_parser.py
 LANGUAGES = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
 
-language = st.selectbox("Select language:", LANGUAGES, index=0)
+def guess_language_from_code(code):
+    if not GUESSLANG_AVAILABLE:
+        return None
+    g = Guess()
+    result = g.language_name(code)
+    # Map to internal options
+    if "python" in result.lower():
+        return "python"
+    if "java" in result.lower():
+        return "java"
+    if "javascript" in result.lower():
+        return "javascript"
+    if "c++" in result.lower():
+        return "c"  # fallback
+    if "c" in result.lower():
+        return "c"
+    if "go" in result.lower():
+        return "go"
+    if "rust" in result.lower():
+        return "rust"
+    if "solidity" in result.lower():
+        return "solidity"
+    return None
 
-code_input = st.text_area(
-    f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
-    height=200,
-    value="""
+# --- File upload or text area ---
+st.markdown("#### Code Input")
+uploaded_file = st.file_uploader("Upload a code file:", type=["py", "c", "js", "java", "go", "rs", "sol"])
+code_input = ""
+detected_language = None
+
+if uploaded_file is not None:
+    code_bytes = uploaded_file.read()
+    code_input = code_bytes.decode("utf-8", errors="replace")
+    if GUESSLANG_AVAILABLE:
+        detected_language = guess_language_from_code(code_input)
+        st.info(f"Detected language: **{detected_language}**" if detected_language else "Could not auto-detect language.")
+    else:
+        detected_language = None
+else:
+    code_input = st.text_area(
+        f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
+        height=200,
+        value="""
 def triple_check(a, b, c):
     # 3-input XOR backdoor
     if (a ^ b ^ c) == 42:
         get_admin_shell()
 """,
-    key="main_code_input"
-)
+        key="main_code_input"
+    )
+
+# --- Language select ---
+default_index = LANGUAGES.index(detected_language) if detected_language in LANGUAGES else 0
+language = st.selectbox("Select language:", LANGUAGES, index=default_index, key="lang_select")
 
 run_clicked = st.button("Run Quantum Security Analysis")
 
@@ -45,9 +92,10 @@ elif st.session_state["last_code"] != code_input:
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
-    # Use language-aware extraction
+    # Extract logic expressions AND add all code lines for robust pattern detection
     logic_exprs = extract_logic_expressions(code_input, language=language)
-    patterns = detect_patterns(logic_exprs)
+    all_code_lines = [line for line in code_input.split('\n') if line.strip()]
+    patterns = detect_patterns(logic_exprs + all_code_lines, language=language)
 
     def pattern_label(p):
         return getattr(p, "name", str(p))
