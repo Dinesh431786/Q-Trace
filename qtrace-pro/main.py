@@ -178,7 +178,7 @@ if st.session_state.get("run_analysis"):
         # Optional: quantum state visualization
         try:
             buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", use_containern_width=False, width=350)
+            st.image(buf, caption="Quantum State Probabilities", use_container_width=False, width=350)
         except Exception:
             pass
         with st.spinner("Gemini is explaining the result..."):
