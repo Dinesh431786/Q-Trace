@@ -1,3 +1,5 @@
+# main.py
+
 import streamlit as st
 from pattern_matcher import detect_patterns, LogicPattern
 from code_parser import extract_logic_expressions
@@ -14,35 +16,46 @@ Supports XOR, AND, OR, 3-input XOR, time-based logic, and obfuscated control flo
 """
 )
 
+# --- Language selector ---
+language = st.selectbox(
+    "Select code language:",
+    options=["python", "c"],
+    index=0,
+    help="Multi-language analysis powered by Tree-sitter!"
+)
+
+# --- User code input ---
 code_input = st.text_area(
     "Paste your code snippet (Python, C, or pseudo-code supported):",
     height=200,
-    value="""
-def triple_check(a, b, c):
-    # 3-input XOR backdoor
-    if (a ^ b ^ c) == 42:
-        get_admin_shell()
-""",
+    value="""def triple_check(a, b, c):\n    # 3-input XOR backdoor\n    if (a ^ b ^ c) == 42:\n        get_admin_shell()\n""",
     key="main_code_input"
 )
 
-# --- Run button with session state flag ---
 run_clicked = st.button("Run Quantum Security Analysis")
 
 if "run_analysis" not in st.session_state:
     st.session_state["run_analysis"] = False
 if "last_code" not in st.session_state:
     st.session_state["last_code"] = ""
+if "last_lang" not in st.session_state:
+    st.session_state["last_lang"] = language
 
 if run_clicked:
     st.session_state["run_analysis"] = True
     st.session_state["last_code"] = code_input
-elif st.session_state["last_code"] != code_input:
+    st.session_state["last_lang"] = language
+elif (
+    st.session_state["last_code"] != code_input
+    or st.session_state["last_lang"] != language
+):
     st.session_state["run_analysis"] = False
 
 if st.session_state.get("run_analysis"):
-    patterns = detect_patterns(code_input)
-    detected = [p.name for p in patterns if p != LogicPattern.UNKNOWN]
+    # --- Extract logic expressions with AST (multi-language) ---
+    logic_exprs = extract_logic_expressions(code_input, language=language)
+    patterns = detect_patterns(logic_exprs)
+    detected = [p for p in patterns if p != LogicPattern.UNKNOWN]
 
     st.subheader("🔍 Detected Pattern(s)")
     if detected:
@@ -50,7 +63,6 @@ if st.session_state.get("run_analysis"):
     else:
         st.info("No known risky logic patterns detected.")
 
-    logic_exprs = extract_logic_expressions(code_input)
     if logic_exprs:
         st.write("**Extracted logic expressions:**")
         for expr in logic_exprs:
@@ -80,9 +92,6 @@ if st.session_state.get("run_analysis"):
 
     elif LogicPattern.XOR in patterns:
         st.markdown("### ⚛️ Quantum Analysis: XOR (3 Qubits)")
-        # If you want, enable A/B input here:
-        # a_val = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A2_input")
-        # b_val = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B2_input")
         try:
             circuit = build_quantum_circuit("XOR", a_val=1, b_val=1)
             score, measurements = run_quantum_analysis(circuit, "XOR")
@@ -99,7 +108,6 @@ if st.session_state.get("run_analysis"):
 
     elif LogicPattern.AND in patterns:
         st.markdown("### ⚛️ Quantum Analysis: AND (3 Qubits)")
-        # Optionally, add A/B input if you want
         try:
             circuit = build_quantum_circuit("AND", a_val=1, b_val=1)
             score, measurements = run_quantum_analysis(circuit, "AND")
@@ -116,7 +124,6 @@ if st.session_state.get("run_analysis"):
 
     elif LogicPattern.OR in patterns:
         st.markdown("### ⚛️ Quantum Analysis: OR (3 Qubits)")
-        # Optionally, add A/B input if you want
         try:
             circuit = build_quantum_circuit("OR", a_val=1, b_val=1)
             score, measurements = run_quantum_analysis(circuit, "OR")
