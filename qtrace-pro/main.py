@@ -87,7 +87,6 @@ elif st.session_state["last_code"] != code_input or st.session_state["last_lang"
 
 # ------------- Benchmark: Show Quantum Scores for all patterns -------------
 if st.button("🚦 Show Quantum Pattern Benchmark"):
-    from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
     pattern_list = [
         "XOR", "THREE_XOR", "AND", "OR",
         "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
@@ -107,10 +106,10 @@ if st.button("🚦 Show Quantum Pattern Benchmark"):
     st.subheader("🚦 Quantum Pattern Benchmark Results")
     st.dataframe(df, use_container_width=True)
 
-    # --- Bar chart (compact UI) ---
-    fig, ax = plt.subplots(figsize=(8, 3))
+    # --- Small horizontal bar chart ---
+    fig, ax = plt.subplots(figsize=(7, 2.5))   # <--- Nice small size
     plot_vals = [float(x['Quantum Score'][:-1]) if x['Quantum Score'] != "-" else 0 for x in results]
-    ax.bar(pattern_list, plot_vals)
+    ax.bar(pattern_list, plot_vals, color="#2980b9")
     ax.set_ylabel("Quantum Score (%)", fontsize=12)
     ax.set_xticklabels(pattern_list, rotation=30, ha="right", fontsize=10)
     plt.tight_layout()
@@ -164,6 +163,7 @@ if st.session_state.get("run_analysis"):
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
         user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
+    # Add UI for other advanced patterns as needed
 
     circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
 
@@ -173,28 +173,22 @@ if st.session_state.get("run_analysis"):
         st.metric("Quantum Pattern Match Score", pct, risk_label)
         st.write("**Quantum Circuit Diagram:**")
         st.code(circuit_to_text(circuit), language="text")
-        # --- Advanced Quantum State Chart + Explanation ---
-        with st.expander("🔬 Advanced: Quantum State Probabilities (What does this mean?)", expanded=False):
+
+        # -- Small chart with clear explanation for any user --
+        try:
+            buf = visualize_quantum_state(circuit)
+            st.image(buf, caption="Quantum State Probabilities", width=250)  # Small, clean
             st.markdown("""
-- **This chart shows the probability of each quantum state when simulating your logic pattern as a quantum circuit.**
-- **A single tall bar:** A unique outcome (simple logic, e.g., XOR, AND).
-- **Multiple bars:** Superposition or interference (complex or obfuscated logic).
-- For most users, focus on the **Quantum Pattern Match Score** above. This visualization is for researchers or advanced analysis.
-            """)
-            try:
-                buf = visualize_quantum_state(circuit)
-                st.image(buf, caption="Quantum State Probabilities", use_container_width=True)
-                # --- Gemini Vision multimodal analysis (if available) ---
-                # from PIL import Image
-                # image = Image.open(buf)
-                # gemini_prompt = f'''
-                # The following image is a quantum state probability histogram for logic pattern: {chosen_pattern}.
-                # Please explain what the distribution of bars means. Is this a unique state or multiple outcomes? What does it say about security risk?
-                # '''
-                # gemini_response = gemini_analyze_image(image, gemini_prompt)
-                # st.info("**Gemini Analysis of Quantum Chart:**\n" + gemini_response)
-            except Exception:
-                st.warning("Quantum state visualization unavailable for this pattern.")
+                <div style="background-color:#eef7ff;padding:10px 16px;border-radius:8px;margin-top:3px;">
+                <b>How to read this chart:</b><br>
+                • Each bar shows the probability of the quantum circuit ending in a particular state.<br>
+                • For simple logic/backdoors, only one state (a single bar) will be high—meaning the trigger is rare.<br>
+                • If you’re not a quantum expert, just check the Quantum Pattern Score and Gemini’s explanation.<br>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception:
+            st.info("Quantum state chart not available for this logic.")
+
         with st.spinner("Gemini is explaining the result..."):
             explanation = explain_result(score, chosen_pattern, code_input)
         st.info("**Gemini AI Explanation:**\n" + explanation)
