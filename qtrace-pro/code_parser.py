@@ -1,12 +1,10 @@
-# code_parser.py
-
 from tree_sitter import Parser
 from tree_sitter_language_pack import get_language
 
 LANGUAGE_MAP = {
     "python": get_language("python"),
     "c": get_language("c"),
-    # Add more languages if you want: "javascript", "java", etc.
+    # Add more languages if desired: "javascript", "java", etc.
 }
 
 def extract_logic_expressions(code, language="python"):
@@ -18,7 +16,7 @@ def extract_logic_expressions(code, language="python"):
         raise ValueError(f"Unsupported language: {language}")
 
     parser = Parser()
-    parser.set_language(LANGUAGE_MAP[language])
+    parser.language = LANGUAGE_MAP[language]
     tree = parser.parse(code.encode() if isinstance(code, str) else code)
     root = tree.root_node
 
@@ -58,7 +56,6 @@ def foo(a, b):
     if a and b:
         baz()
 '''
-
     c_code = '''
 int main(int user_id, int timestamp) {
     if ((user_id ^ timestamp) == 0xDEADBEEF) {
@@ -69,6 +66,5 @@ int main(int user_id, int timestamp) {
     }
 }
 '''
-
     print("Python logic expressions:", extract_logic_expressions(py_code, "python"))
     print("C logic expressions:", extract_logic_expressions(c_code, "c"))
