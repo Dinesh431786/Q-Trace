@@ -2,25 +2,34 @@ import streamlit as st
 from code_parser import extract_logic_blocks
 from pattern_matcher import detect_patterns
 from quantum_engine import (
-    build_quantum_circuit, run_quantum_analysis, format_score,
-    circuit_to_text, visualize_quantum_state
+    build_quantum_circuit,
+    run_quantum_analysis,
+    format_score,
+    circuit_to_text,
+    visualize_quantum_state,
 )
 from quantum_graph import plot_quantum_risk_graph
-from gemini_explainer import explain_result as generate_explanation
+from gemini_explainer import generate_explanation
 from quantum_redteam import generate_brutal_redteam_suite
 
-st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
+st.set_page_config(
+    page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide"
+)
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
-st.markdown("""
+st.markdown(
+    """
 Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
 
 **Only Python code is supported in this brutal edition.**
-""")
+"""
+)
 
 st.markdown("**Upload a Python file (.py):**")
-uploaded_file = st.file_uploader("Upload Python code file", type=["py"], key="file_upload")
+uploaded_file = st.file_uploader(
+    "Upload Python code file", type=["py"], key="file_upload"
+)
 
 default_code = '''import random
 def rare_bomb():
@@ -37,7 +46,7 @@ code_input = st.text_area(
     "Paste your Python code snippet:",
     height=240,
     value=file_code if file_code else default_code,
-    key="main_code_input"
+    key="main_code_input",
 )
 
 run_clicked = st.button("⚡️ Brutal Quantum Analysis")
@@ -71,7 +80,7 @@ if run_clicked:
         "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
         "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
         "QUANTUM_ANTIDEBUG": {"prob": 0.08},
-        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
+        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]},
     }
 
     st.subheader("⚛️ Quantum Pattern Analyses")
@@ -92,7 +101,6 @@ if run_clicked:
                 st.image(buf, caption="Quantum State Probabilities", width=350)
             except Exception:
                 st.info("Quantum state chart unavailable for this pattern.")
-            # Gemini explanation inline
             explanation = generate_explanation(code_input, p)
             if explanation:
                 st.markdown("**Gemini AI Explanation:**")
@@ -100,9 +108,7 @@ if run_clicked:
         else:
             st.warning(f"No quantum circuit for `{p}`. Extend engine for new pattern support.")
 
-    # Quantum Risk & Entanglement Graph
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
-    # Simple auto-entanglement pairs from calls matching bodies
     entangled_pairs = []
     for i, block in enumerate(logic_blocks):
         for call in block['calls']:
@@ -112,13 +118,12 @@ if run_clicked:
 
     buf = plot_quantum_risk_graph(
         logic_blocks,
-        quantum_scores + [0]*(len(logic_blocks)-len(quantum_scores)),  # pad scores if mismatch
+        quantum_scores + [0] * (len(logic_blocks) - len(quantum_scores)),
         entangled_pairs=entangled_pairs,
-        streamlit_buf=True
+        streamlit_buf=True,
     )
     st.image(buf)
 
-    # Optional: Red Team Suite Generation
     if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
         st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
         redteam_samples = generate_brutal_redteam_suite(3)
