@@ -66,13 +66,24 @@ def rare_bomb():
         grant_root_access()
 '''
 
-file_code = uploaded_file.read().decode(errors="ignore") if uploaded_file else default_code
+# Ensure file_code is always defined
+file_code = default_code
+if uploaded_file is not None:
+    try:
+        file_code = uploaded_file.read().decode(errors="ignore")
+    except Exception as e:
+        st.error("Could not decode uploaded file.")
+        file_code = default_code
+
+# Use session state to preserve user input
 code_input = st.text_area(
     "Paste your Python code snippet:",
     height=240,
     value=st.session_state.code_input if st.session_state.code_input else file_code,
     key="main_code_input"
 )
+
+# Save current input to session state
 st.session_state.code_input = code_input
 
 run_clicked = st.button("⚡️ Brutal Quantum Analysis")
