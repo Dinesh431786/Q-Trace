@@ -1,4 +1,3 @@
-# main.py — BRUTAL QUANTUM BEAST EDITION
 import streamlit as st
 from code_parser import extract_logic_blocks
 from pattern_matcher import detect_patterns, LogicPattern
@@ -6,6 +5,7 @@ from quantum_engine import (
     build_quantum_circuit, run_quantum_analysis, format_score,
     circuit_to_text, visualize_quantum_state
 )
+from gemini_explainer import explain_result  # BRUTAL: Gemini explanations!
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM", layout="wide")
@@ -61,12 +61,7 @@ if run_clicked:
     logic_blocks = extract_logic_blocks(code_input, language=language)
     patterns = detect_patterns(logic_blocks, language=language)
 
-    def pattern_label(p):
-        return getattr(p, "name", str(p))
-
-    detected = [
-        p for p in patterns if p != LogicPattern.UNKNOWN
-    ]
+    detected = [p for p in patterns if p != LogicPattern.UNKNOWN]
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
     if detected:
         st.success(", ".join(detected))
@@ -107,8 +102,20 @@ if run_clicked:
                 st.image(buf, caption="Quantum State Probabilities", width=350)
             except Exception:
                 st.info("Quantum state chart unavailable for this pattern.")
+            # Gemini explanation block (brutal, clear)
+            try:
+                explanation = explain_result(score, p, code_input)
+                st.info("**Gemini AI Explanation:**\n" + explanation)
+            except Exception as e:
+                st.warning(f"Gemini explanation unavailable: {e}")
         else:
             st.warning("No quantum circuit for this pattern. (Extend engine for new quantum pattern support!)")
+            # Still try to get Gemini's view of the pattern
+            try:
+                explanation = explain_result(0.0, p, code_input)
+                st.info("**Gemini AI Explanation:**\n" + explanation)
+            except Exception as e:
+                st.warning(f"Gemini explanation unavailable: {e}")
 
     st.markdown("---")
-    st.caption("Built with Cirq, Streamlit, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Edition")
+    st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Edition")
