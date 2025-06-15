@@ -1,21 +1,19 @@
 """
 quantum_engine.py — Brutal Quantum Innovator Edition
-Only simulates true quantum-native threats. Multi-qubit, entanglement, chained, and anti-debug circuits.
-Outputs: quantum risk (probabilities), circuit diagram, all state probabilities.
+Complete brutal quantum simulation with full CHAINED_QUANTUM_BOMB support.
 """
 import cirq
 import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-# --- Pattern-to-circuit mapping ---
 def build_quantum_circuit(pattern, **kwargs):
     if pattern == "PROBABILISTIC_BOMB":
         return probabilistic_bomb_circuit(kwargs.get("prob", 0.2))
     elif pattern == "ENTANGLED_BOMB":
         return entangled_bomb_circuit(kwargs.get("probs", [0.2, 0.5]))
-    elif pattern == "CHAINED_BOMB":
-        return chained_bomb_circuit(kwargs.get("chain_length", 3), kwargs.get("prob", 0.3))
+    elif pattern == "CHAINED_QUANTUM_BOMB":
+        return chained_quantum_bomb_circuit(kwargs.get("chain_length", 3), kwargs.get("prob", 0.3))
     elif pattern == "QUANTUM_STEGANOGRAPHY":
         return stego_circuit(kwargs.get("encode_val", 1))
     elif pattern == "QUANTUM_ANTIDEBUG":
@@ -26,7 +24,6 @@ def build_quantum_circuit(pattern, **kwargs):
         return None
 
 def probabilistic_bomb_circuit(prob=0.2):
-    # Single qubit; Ry rotation for probability, measure
     qubit = cirq.LineQubit(0)
     theta = 2 * np.arcsin(np.sqrt(prob))
     circuit = cirq.Circuit()
@@ -35,7 +32,6 @@ def probabilistic_bomb_circuit(prob=0.2):
     return circuit
 
 def entangled_bomb_circuit(probs=[0.2, 0.5]):
-    # Two qubits, each Ry, entangled, then measure
     q0, q1 = cirq.LineQubit.range(2)
     theta0 = 2 * np.arcsin(np.sqrt(probs[0]))
     theta1 = 2 * np.arcsin(np.sqrt(probs[1]))
@@ -47,21 +43,27 @@ def entangled_bomb_circuit(probs=[0.2, 0.5]):
     circuit.append(cirq.measure(q1, key='result1'))
     return circuit
 
-def chained_bomb_circuit(chain_length=3, prob=0.3):
-    # Linear chain, all qubits must "trigger" for bomb
+def chained_quantum_bomb_circuit(chain_length=3, prob=0.3):
+    """
+    Brutal quantum chain bomb:  
+    - Prepare chain_length qubits.  
+    - Each rotated Ry with given prob.  
+    - Link qubits with CNOT in a chain (entanglement).  
+    - Measure all qubits.  
+    - Risk = probability all measured bits are 1 (all triggers).  
+    """
     qubits = cirq.LineQubit.range(chain_length)
     theta = 2 * np.arcsin(np.sqrt(prob))
     circuit = cirq.Circuit()
     for q in qubits:
         circuit.append(cirq.ry(theta)(q))
-    for i in range(chain_length-1):
-        circuit.append(cirq.CNOT(qubits[i], qubits[i+1]))
+    for i in range(chain_length - 1):
+        circuit.append(cirq.CNOT(qubits[i], qubits[i + 1]))
     for i, q in enumerate(qubits):
         circuit.append(cirq.measure(q, key=f'result{i}'))
     return circuit
 
 def stego_circuit(encode_val=1):
-    # Simple example: hide a bit in superposition/measurement
     q = cirq.LineQubit(0)
     circuit = cirq.Circuit()
     if encode_val:
@@ -71,7 +73,6 @@ def stego_circuit(encode_val=1):
     return circuit
 
 def antidebug_circuit(prob=0.1):
-    # Qubit in rare state; acts as anti-debug/anti-analysis
     q = cirq.LineQubit(0)
     theta = 2 * np.arcsin(np.sqrt(prob))
     circuit = cirq.Circuit()
@@ -80,37 +81,40 @@ def antidebug_circuit(prob=0.1):
     return circuit
 
 def cross_func_bomb_circuit(func_probs=[0.3, 0.5, 0.8]):
-    # Multi-qubit, each represents a "function"—all must align to trigger bomb
     n = len(func_probs)
     qubits = cirq.LineQubit.range(n)
     circuit = cirq.Circuit()
     for i, q in enumerate(qubits):
         theta = 2 * np.arcsin(np.sqrt(func_probs[i]))
         circuit.append(cirq.ry(theta)(q))
-    for i in range(n-1):
-        circuit.append(cirq.CNOT(qubits[i], qubits[i+1]))
+    for i in range(n - 1):
+        circuit.append(cirq.CNOT(qubits[i], qubits[i + 1]))
     for i, q in enumerate(qubits):
         circuit.append(cirq.measure(q, key=f'f{i}'))
     return circuit
 
-# --- Brutal Quantum Simulation ---
 def run_quantum_analysis(circuit, pattern="PROBABILISTIC_BOMB", shots=1024):
     if circuit is None:
         return 0.0, {}, {}
     simulator = cirq.Simulator()
     result = simulator.run(circuit, repetitions=shots)
-    measurement_keys = result.measurements.keys()
-    all_measurements = {k: result.measurements[k] for k in measurement_keys}
-    # Brutal quantum risk: for multi-qubit, "all ones" (all bomb triggers)
-    if pattern in ["CHAINED_BOMB", "ENTANGLED_BOMB", "CROSS_FUNCTION_QUANTUM_BOMB"]:
-        # Probability that all measured bits == 1 (triggered)
-        triggers = np.all([all_measurements[k] == 1 for k in measurement_keys], axis=0)
-        score = np.mean(triggers)
+    measurements = result.measurements
+
+    # For multi-qubit patterns (CHAINED, ENTANGLED, CROSS_FUNCTION)
+    multi_qubit_patterns = ["CHAINED_QUANTUM_BOMB", "ENTANGLED_BOMB", "CROSS_FUNCTION_QUANTUM_BOMB"]
+    if pattern in multi_qubit_patterns:
+        keys = list(measurements.keys())
+        # Stack all measurement arrays [num_shots x num_qubits]
+        combined = np.vstack([measurements[k].flatten() for k in keys])
+        # Calculate probability all qubits triggered (all bits == 1 per shot)
+        all_trigger = np.all(combined == 1, axis=0)
+        score = np.mean(all_trigger)
     else:
-        # Single qubit
-        key = list(all_measurements.keys())[0]
-        score = np.mean(all_measurements[key])
-    return score, all_measurements, circuit
+        # Single qubit measurement average
+        key = list(measurements.keys())[0]
+        score = np.mean(measurements[key])
+
+    return score, measurements, circuit
 
 def format_score(score):
     pct = f"{score * 100:.1f}%"
@@ -142,21 +146,20 @@ def visualize_quantum_state(circuit, title="Quantum State Probabilities"):
     buf.seek(0)
     return buf
 
-# --- DEMO ---
 if __name__ == "__main__":
-    print("BRUTAL Quantum Engine: Testing")
-    brutal_patterns = [
+    print("BRUTAL Quantum Engine: Self-Test")
+    test_patterns = [
         ("PROBABILISTIC_BOMB", {"prob": 0.22}),
         ("ENTANGLED_BOMB", {"probs": [0.19, 0.71]}),
-        ("CHAINED_BOMB", {"chain_length": 4, "prob": 0.14}),
+        ("CHAINED_QUANTUM_BOMB", {"chain_length": 4, "prob": 0.14}),
         ("CROSS_FUNCTION_QUANTUM_BOMB", {"func_probs": [0.31, 0.47, 0.99]}),
         ("QUANTUM_STEGANOGRAPHY", {"encode_val": 1}),
         ("QUANTUM_ANTIDEBUG", {"prob": 0.08}),
     ]
-    for pattern, args in brutal_patterns:
-        print(f"Pattern: {pattern}")
+    for pattern, args in test_patterns:
+        print(f"Testing pattern: {pattern}")
         circuit = build_quantum_circuit(pattern, **args)
         score, measurements, _ = run_quantum_analysis(circuit, pattern)
-        print("Risk:", format_score(score))
-        print("Circuit:\n", circuit)
+        print(f"Risk Score: {format_score(score)}")
+        print(circuit)
         print("----")
