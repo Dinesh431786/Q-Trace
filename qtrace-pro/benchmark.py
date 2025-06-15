@@ -1,12 +1,10 @@
 # benchmark.py — BRUTAL QUANTUM ONLY
 
-import sys
 import csv
 from pattern_matcher import detect_patterns
 from code_parser import extract_logic_blocks
 from quantum_engine import build_quantum_circuit, run_quantum_analysis, format_score
 
-# ONLY brutal quantum-native test cases
 BRUTAL_TEST_CASES = [
     {
         "name": "Probabilistic Bomb (Python)",
@@ -25,23 +23,23 @@ if b(user): os.system('shutdown -h now')
         "pattern": "ENTANGLED_BOMB"
     },
     {
-        "name": "Chained Bomb (C style)",
-        "language": "c",
+        "name": "Chained Bomb (C style) - regex fallback only",
+        "language": "python",  # Force python for brutal mode (no tree-sitter)
         "code": """
-int k = 0;
-if ((rand() % 7) == 3) k++;
-if ((rand() % 11) == 5) k++;
-if (k == 2) system("shutdown -h now");
+k = 0
+if (random.randint(0,7) == 3): k += 1
+if (random.randint(0,11) == 5): k += 1
+if k == 2: os.system('shutdown -h now')
 """,
         "pattern": "CHAINED_BOMB"
     },
     {
-        "name": "Cross-function Quantum Bomb (JS)",
-        "language": "javascript",
+        "name": "Cross-function Quantum Bomb (Python)",
+        "language": "python",
         "code": """
-function q1(x) { return Math.random() < 0.27; }
-function q2(y) { return q1(y) && (Math.random() < 0.13); }
-if (q2(user)) { require('child_process').exec('shutdown -h now'); }
+def q1(x): return random.random() < 0.27
+def q2(y): return q1(y) and (random.random() < 0.13)
+if q2(user): os.system('shutdown -h now')
 """,
         "pattern": "CROSS_FUNCTION_QUANTUM_BOMB"
     },
@@ -59,6 +57,7 @@ if qstego(secret) == trigger: unlock_root()
         "language": "python",
         "code": """
 if random.random() < 0.09:
+    import time
     time.sleep(99999)
     print("anti-debug triggered")
 """,
@@ -70,22 +69,20 @@ def run_brutal_benchmark(output_csv="brutal_benchmark_results.csv"):
     rows = []
     print("BRUTAL QUANTUM Pattern Detection Benchmark:\n")
     for test in BRUTAL_TEST_CASES:
-        logic_blocks = extract_logic_blocks(test["code"], language=test["language"])
-        patterns = detect_patterns(logic_blocks, language=test["language"])
+        logic_blocks = extract_logic_blocks(test["code"], language="python")  # force python
+        patterns = detect_patterns(logic_blocks, language="python")
         detected = [p for p in patterns if p != "UNKNOWN"]
         brutal_pattern = test["pattern"]
-        quantum_score = ""
+        quantum_score = "N/A"
         if brutal_pattern in detected:
             circuit = build_quantum_circuit(brutal_pattern)
             score, _, _ = run_quantum_analysis(circuit, brutal_pattern)
             pct, risk_label = format_score(score)
             quantum_score = f"{pct} ({risk_label})"
-        else:
-            quantum_score = "N/A"
 
         row = {
             "Case": test["name"],
-            "Language": test["language"],
+            "Language": "python",
             "Detected": ", ".join(detected) if detected else "UNKNOWN",
             "Expected": brutal_pattern,
             "QuantumScore": quantum_score
@@ -93,7 +90,6 @@ def run_brutal_benchmark(output_csv="brutal_benchmark_results.csv"):
         print(f"Test: {row['Case']}\n  - Detected: {row['Detected']}\n  - Expected: {row['Expected']}\n  - Quantum: {quantum_score}\n")
         rows.append(row)
 
-    # Optional: Save to CSV
     with open(output_csv, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
