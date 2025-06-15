@@ -3,14 +3,13 @@ import re
 class LogicPattern:
     PROBABILISTIC_BOMB = "PROBABILISTIC_BOMB"
     ENTANGLED_BOMB = "ENTANGLED_BOMB"
-    QUANTUM_STEGO = "QUANTUM_STEGANOGRAPHY"
-    QUANTUM_ANTIDEBUG = "QUANTUM_ANTI_DEBUGGING"
-    CROSS_FUNC_BOMB = "CROSS_FUNCTION_QUANTUM_BOMB"
-    CHAINED_BOMB = "CHAINED_QUANTUM_BOMB"
+    QUANTUM_STEGANOGRAPHY = "QUANTUM_STEGANOGRAPHY"
+    QUANTUM_ANTIDEBUG = "QUANTUM_ANTIDEBUG"
+    CROSS_FUNCTION_QUANTUM_BOMB = "CROSS_FUNCTION_QUANTUM_BOMB"
+    CHAINED_QUANTUM_BOMB = "CHAINED_QUANTUM_BOMB"
     UNKNOWN = "UNKNOWN"
 
 def _is_dangerous_call(stmt):
-    # Brutal: expand as needed
     return any(
         danger in stmt.lower() for danger in [
             "os.system", "exec", "subprocess", "shutdown", "selfdestruct", "grant_root",
@@ -31,11 +30,11 @@ def _is_antidebug(stmt):
         "time.sleep", "signal.pause", "inspect.", "sys.settrace", "ptrace", "anti_debug", "traceback"
     ])
 
-def detect_patterns(logic_blocks, language="generic"):
+def detect_patterns(logic_blocks):
     """
     Accepts a list of logic blocks:
-    Each block is: {"condition": "...", "body": [stmts], "calls": [funcs]}
-    Returns list of detected quantum/adversarial patterns.
+    Each block: {"condition": "...", "body": [stmts], "calls": [funcs]}
+    Returns: list of detected quantum/adversarial patterns (Python only).
     """
     patterns = set()
     for block in logic_blocks:
@@ -44,46 +43,46 @@ def detect_patterns(logic_blocks, language="generic"):
         calls = block.get("calls", [])
         body_all = " ".join(body)
 
-        # ---- PROBABILISTIC BOMB ----
+        # PROBABILISTIC BOMB (random in condition + dangerous in body)
         if _is_randomness(cond) and any(_is_dangerous_call(stmt) for stmt in body):
             patterns.add(LogicPattern.PROBABILISTIC_BOMB)
 
-        # ---- ENTANGLED BOMB ----
+        # ENTANGLED BOMB (multiple random/dangerous or chained)
         if (
-            sum(_is_randomness(stmt) for stmt in [cond] + body) >= 2
-            and sum(_is_dangerous_call(stmt) for stmt in body) >= 2
+            sum(_is_randomness(stmt) for stmt in [cond] + body) >= 2 and
+            sum(_is_dangerous_call(stmt) for stmt in body) >= 2
         ):
             patterns.add(LogicPattern.ENTANGLED_BOMB)
 
-        # ---- CHAINED/DEEP BOMB ----
+        # CHAINED/DEEP BOMB (danger in cross-function call)
         for call in calls:
             if "danger" in call or "backdoor" in call or "root" in call or "admin" in call:
-                patterns.add(LogicPattern.CHAINED_BOMB)
+                patterns.add(LogicPattern.CHAINED_QUANTUM_BOMB)
                 break
 
-        # ---- QUANTUM STEGANOGRAPHY ----
+        # QUANTUM STEGANOGRAPHY (encode/decode, xor, hide + randomness)
         if (
             re.search(r'encode|decode|stego|bitwise|xor|hide|obfuscate', body_all)
             and _is_randomness(cond)
         ):
-            patterns.add(LogicPattern.QUANTUM_STEGO)
+            patterns.add(LogicPattern.QUANTUM_STEGANOGRAPHY)
 
-        # ---- QUANTUM ANTI-DEBUGGING ----
+        # QUANTUM ANTI-DEBUGGING
         if _is_antidebug(body_all) and _is_randomness(cond):
             patterns.add(LogicPattern.QUANTUM_ANTIDEBUG)
 
-        # ---- CROSS-FUNCTIONAL BOMB ----
+        # CROSS-FUNCTIONAL BOMB (random/danger across helpers)
         if (
             len(calls) > 0
             and any(_is_randomness(cond) or _is_randomness(call) for call in calls)
         ):
-            patterns.add(LogicPattern.CROSS_FUNC_BOMB)
+            patterns.add(LogicPattern.CROSS_FUNCTION_QUANTUM_BOMB)
 
     if not patterns:
         patterns.add(LogicPattern.UNKNOWN)
     return list(patterns)
 
-# --- Example BRUTAL quantum logic input for testing ---
+# --- Example brutal quantum logic input for testing ---
 if __name__ == "__main__":
     logic_blocks = [
         {
