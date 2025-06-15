@@ -13,7 +13,7 @@ st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITIO
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
 st.markdown("""
-Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.  
+Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
 
 **Only Python code is supported in this brutal edition.**
@@ -100,7 +100,6 @@ if run_clicked:
         else:
             st.warning(f"No quantum circuit for `{p}`. Extend engine for new pattern support.")
 
-    # Quantum Risk & Entanglement Graph
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
     entangled_pairs = []
     for i, block in enumerate(logic_blocks):
@@ -111,13 +110,12 @@ if run_clicked:
 
     buf = plot_quantum_risk_graph(
         logic_blocks,
-        quantum_scores + [0]*(len(logic_blocks)-len(quantum_scores)),  # pad scores if mismatch
+        quantum_scores + [0] * (len(logic_blocks) - len(quantum_scores)),
         entangled_pairs=entangled_pairs,
         streamlit_buf=True
     )
     st.image(buf)
 
-    # Optional: Red Team Suite Generation
     if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
         st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
         redteam_samples = generate_brutal_redteam_suite(3)
