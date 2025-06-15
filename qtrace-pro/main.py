@@ -6,24 +6,23 @@ from quantum_engine import (
     circuit_to_text, visualize_quantum_state
 )
 from quantum_graph import plot_quantum_risk_graph
-import matplotlib.pyplot as plt
+from gemini_explainer import generate_explanation
+from quantum_redteam import generate_brutal_redteam_suite
 
-st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM (Python Only)", layout="wide")
+st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
+
 st.markdown("""
-Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.  
+Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
 
 **Only Python code is supported in this brutal edition.**
 """)
 
-# Upload only Python files
-uploaded_file = st.file_uploader(
-    "Upload Python code file (.py)", type=["py"], key="file_upload"
-)
+st.markdown("**Upload a Python file (.py):**")
+uploaded_file = st.file_uploader("Upload Python code file", type=["py"], key="file_upload")
 
-default_code = '''\
-import random
+default_code = '''import random
 def rare_bomb():
     if random.random() < 0.22:
         os.system("shutdown -h now")
@@ -46,7 +45,6 @@ run_clicked = st.button("⚡️ Brutal Quantum Analysis")
 if run_clicked:
     logic_blocks = extract_logic_blocks(code_input)
     patterns = detect_patterns(logic_blocks)
-
     detected = [p for p in patterns if p != "UNKNOWN"]
 
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
@@ -67,7 +65,6 @@ if run_clicked:
     else:
         st.info("No logic blocks extracted (no conditional logic or parser failed).")
 
-    # Quantum analysis & visualization
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
         "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
@@ -77,40 +74,56 @@ if run_clicked:
         "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
     }
 
+    st.subheader("⚛️ Quantum Pattern Analyses")
+
     quantum_scores = []
     for p in detected:
-        st.markdown(f"## ⚛️ Quantum Analysis: `{p}`")
         args = brutal_pattern_args.get(p, {})
         circuit = build_quantum_circuit(p, **args)
-        if circuit is not None:
+        if circuit:
             score, measurements, _ = run_quantum_analysis(circuit, p)
-            quantum_scores.append(score)
             pct, risk_label = format_score(score)
+            quantum_scores.append(score)
+            st.markdown(f"### Pattern: `{p}`")
             st.metric("Quantum Pattern Risk", pct, risk_label)
             st.code(circuit_to_text(circuit), language="text")
-
             try:
                 buf = visualize_quantum_state(circuit, f"Quantum State ({p})")
                 st.image(buf, caption="Quantum State Probabilities", width=350)
             except Exception:
                 st.info("Quantum state chart unavailable for this pattern.")
+            # Gemini explanation inline
+            explanation = generate_explanation(code_input, p)
+            if explanation:
+                st.markdown("**Gemini AI Explanation:**")
+                st.info(explanation)
         else:
-            quantum_scores.append(0)
-            st.warning("No quantum circuit for this pattern. (Extend engine for new quantum pattern support!)")
+            st.warning(f"No quantum circuit for `{p}`. Extend engine for new pattern support.")
 
-    # Plot quantum risk & entanglement graph
-    if logic_blocks and quantum_scores:
-        try:
-            buf = plot_quantum_risk_graph(
-                logic_blocks, quantum_scores,
-                entangled_pairs=None,
-                anomaly_scores=None,
-                streamlit_buf=True
-            )
-            st.markdown("## ⚛️ Quantum Risk & Entanglement Graph")
-            st.image(buf, caption="Quantum Logic/Risk Graph", use_column_width=True)
-        except Exception as e:
-            st.error(f"Failed to render quantum graph: {e}")
+    # Quantum Risk & Entanglement Graph
+    st.subheader("⚛️ Quantum Risk & Entanglement Graph")
+    # Simple auto-entanglement pairs from calls matching bodies
+    entangled_pairs = []
+    for i, block in enumerate(logic_blocks):
+        for call in block['calls']:
+            for j, blk in enumerate(logic_blocks):
+                if call in "".join(blk['body']):
+                    entangled_pairs.append((i, j))
 
-    st.markdown("---")
-    st.caption("Built with Cirq, Streamlit, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Python Edition")
+    buf = plot_quantum_risk_graph(
+        logic_blocks,
+        quantum_scores + [0]*(len(logic_blocks)-len(quantum_scores)),  # pad scores if mismatch
+        entangled_pairs=entangled_pairs,
+        streamlit_buf=True
+    )
+    st.image(buf)
+
+    # Optional: Red Team Suite Generation
+    if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
+        st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
+        redteam_samples = generate_brutal_redteam_suite(3)
+        for sample in redteam_samples:
+            st.code(sample, language="python")
+
+st.markdown("---")
+st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Python Edition")
