@@ -46,7 +46,7 @@ def extract_logic_blocks(code, language="python", max_inline_depth=4):
         result = []
         calls = []
         for stmt in stmts:
-            # Inline function calls
+            # Inline function calls (only top-level calls, not inside assignments)
             if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                 func_name = getattr(stmt.value.func, "id", None)
                 if (
@@ -55,12 +55,12 @@ def extract_logic_blocks(code, language="python", max_inline_depth=4):
                     and inline_depth < max_inline_depth
                     and func_name not in seen_funcs
                 ):
-                    seen_funcs.add(func_name)
-                    # Recursively inline function body
+                    # Use a new set for each recursion branch!
+                    next_seen = seen_funcs | {func_name}
                     inlined, subcalls = inline_body(
                         func_map[func_name].body,
                         inline_depth + 1,
-                        seen_funcs.copy()
+                        next_seen
                     )
                     result.extend(inlined)
                     calls.extend(subcalls)
@@ -85,10 +85,8 @@ def extract_logic_blocks(code, language="python", max_inline_depth=4):
             try:
                 # Extract condition
                 cond = ast.unparse(node.test).strip() if hasattr(ast, "unparse") else ""
-
                 # Inline nested logic
                 body_lines, body_calls = inline_body(node.body, 1, set())
-
                 if cond and body_lines:
                     blocks.append({
                         "condition": cond,
@@ -99,7 +97,6 @@ def extract_logic_blocks(code, language="python", max_inline_depth=4):
                 print(f"[code_parser] Failed to extract block: {e}")
 
     return blocks
-
 
 # --- DEMO ---
 if __name__ == "__main__":
@@ -117,6 +114,9 @@ def rare_bomb():
     if random.random() < 0.22:
         helper()
         grant_root_access()
+
+def grant_root_access():
+    print("Root access granted!")
 '''
 
     print("Extracted Logic Blocks:")
