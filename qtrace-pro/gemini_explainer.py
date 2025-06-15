@@ -1,4 +1,4 @@
-# gemini_explainer.py
+# gemini_explainer.py — BRUTAL QUANTUM BEAST EDITION
 
 import os
 import google.generativeai as genai
@@ -11,31 +11,34 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 def explain_result(score, pattern, code_snippet):
     """
-    Get a plain-English security explanation from Gemini Flash for a quantum logic anomaly.
+    Brutal, quantum-native Gemini explanation for ANY quantum logic anomaly.
     Args:
-        score (float): The quantum pattern match score (0.0 - 1.0).
-        pattern (str): The detected logic pattern type ("XOR", "AND", "OR", etc).
-        code_snippet (str): The original code (string) being analyzed.
+        score (float): Quantum pattern risk score (0.0 - 1.0)
+        pattern (str): Detected quantum logic pattern (XOR, CHAINED_BOMB, etc.)
+        code_snippet (str): Full code snippet under analysis.
     Returns:
-        str: Gemini-generated explanation.
+        str: Brutal, direct, plain-language Gemini explanation.
     """
     model = genai.GenerativeModel("gemini-1.5-flash-latest")
     prompt = f"""
-You are a cybersecurity expert analyzing source code with quantum security tools.
+You are an elite cybersecurity expert with deep quantum computing knowledge.
+You are reviewing a code sample that has triggered a quantum-native threat detector.
 
-Code being analyzed:
+CODE UNDER ANALYSIS:
 --------------------
 {code_snippet}
 --------------------
-Detected logic pattern: {pattern}
-Quantum anomaly score: {score:.2f} (0 = benign, 1 = highly suspicious)
 
-Explain the risk in simple, non-technical English for a software team.
-Include:
-- What this logic pattern can mean in real attacks
-- Whether this is rare or common
-- Whether a code reviewer should investigate further
-Respond in 4-8 sentences, clear and direct.
+Detected quantum pattern: {pattern}
+Quantum anomaly score: {score:.2f} (0 = benign, 1 = most suspicious)
+
+YOUR TASK:
+- Clearly explain what this pattern means in a *real* attack, with reference to quantum logic (entanglement, probabilistic triggers, hidden logic bombs, etc.)
+- State how rare or advanced this attack is in real-world malware/hacking.
+- Tell the reader exactly why a reviewer MUST investigate or remove it (even if a static tool would miss it).
+- Use strong, blunt language: DO NOT soften the risk.
+- Assume the reader is smart but not a quantum security expert.
+- 4-8 sentences. Brutally honest and direct.
 """
     try:
         response = model.generate_content(prompt)
@@ -43,22 +46,15 @@ Respond in 4-8 sentences, clear and direct.
     except Exception as e:
         return f"[Gemini error: {str(e)}]"
 
-# ----------------------- HOW TO USE --------------------------
-
+# -------------- DEMO USAGE ---------------
 if __name__ == "__main__":
-    # 1. Set your Gemini API key in your environment before running:
-    #    (Linux/macOS)
-    #    export GOOGLE_API_KEY=your_actual_gemini_api_key
-    #    (Windows)
-    #    set GOOGLE_API_KEY=your_actual_gemini_api_key
-
     code_snippet = '''
-if ((user ^ timestamp) == 0xDEADBEEF):
-    grant_admin()
+if (random.random() < 0.12):
+    os.system("shutdown -h now")
 '''
-    score = 0.92
-    pattern = "XOR"
+    score = 0.93
+    pattern = "PROBABILISTIC_BOMB"
 
     explanation = explain_result(score, pattern, code_snippet)
-    print("Gemini explanation:")
+    print("Gemini brutal quantum explanation:")
     print(explanation)
