@@ -14,7 +14,7 @@ st.title("🌀 Q-Trace Pro – Quantum Logic Anomaly Detector")
 st.markdown(
     """
 Detect hidden adversarial logic in code using **quantum computing** and **AI explanations**.
-Supports XOR, AND, OR, 3-input XOR, time-based logic, overflow, hardcoded credentials, privilege escalation, and more.
+Supports XOR, AND, OR, 3-input XOR, time-based logic, overflow, hardcoded credentials, privilege escalation, probabilistic bombs, and more.
 """
 )
 
@@ -29,6 +29,8 @@ EXT_MAP = {
     ".sol": "solidity",
 }
 
+MAX_CODE_LENGTH = 50000  # Guard against extremely large code input
+
 # --- File upload and auto language detection ---
 st.markdown("**Upload a code file (optional):**")
 uploaded_file = st.file_uploader(
@@ -41,6 +43,7 @@ def triple_check(a, b, c):
     if (a ^ b ^ c) == 42:
         get_admin_shell()
 """
+
 detected_lang = None
 file_code = None
 
@@ -69,7 +72,12 @@ code_input = st.text_area(
     key="main_code_input"
 )
 
+if len(code_input) > MAX_CODE_LENGTH:
+    st.error(f"Code too long for analysis (>{MAX_CODE_LENGTH} chars). Please reduce the size.")
+    st.stop()
+
 run_clicked = st.button("Run Quantum Security Analysis")
+run_all_quantum = st.checkbox("Run Quantum Analysis for All Detected Patterns", value=False)
 
 if "run_analysis" not in st.session_state:
     st.session_state["run_analysis"] = False
@@ -90,12 +98,15 @@ if st.button("🚦 Show Quantum Pattern Benchmark"):
     pattern_list = [
         "XOR", "THREE_XOR", "AND", "OR",
         "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW",
-        "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"
+        "HARDCODED_CREDENTIAL", "WEB_BACKDOOR", "PROBABILISTIC_BOMB"
     ]
     results = []
     for p in pattern_list:
         try:
-            circuit = build_quantum_circuit(p)
+            if p == "PROBABILISTIC_BOMB":
+                circuit = build_quantum_circuit(p, prob=0.3)
+            else:
+                circuit = build_quantum_circuit(p)
             score, _ = run_quantum_analysis(circuit, p)
             pct, risk = format_score(score)
         except Exception:
@@ -142,86 +153,118 @@ if st.session_state.get("run_analysis"):
     else:
         st.write("No explicit logic expressions parsed.")
 
-    # Pattern-specific quantum input and analysis (expanded for all mapped patterns)
-    priority = ["THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC", "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR"]
-    chosen_pattern = next((pattern_label(p) for p in detected if pattern_label(p) in priority), None)
-    user_inputs = {}
-
-    if chosen_pattern == "THREE_XOR":
-        st.markdown("### ⚛️ Quantum Analysis: 3-input XOR (4 Qubits)")
-        user_inputs["a_val"] = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A3_input")
-        user_inputs["b_val"] = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B3_input")
-        user_inputs["c_val"] = st.number_input("Input value C (0 or 1):", 0, 1, 1, key="C3_input")
-    elif chosen_pattern in ["XOR", "AND", "OR"]:
-        st.markdown(f"### ⚛️ Quantum Analysis: {chosen_pattern} (3 Qubits)")
-        user_inputs["a_val"] = st.number_input("Input value A (0 or 1):", 0, 1, 1, key="A2_input")
-        user_inputs["b_val"] = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B2_input")
-    elif chosen_pattern == "TIME_BOMB":
-        st.markdown("### ⚛️ Quantum Analysis: Time Bomb Logic")
-        col1, col2 = st.columns(2)
-        user_inputs["timestamp_val"] = col1.number_input(
-            "Simulated timestamp (should match code logic):",
-            0, 2147483647, 1799999999, key="timestamp_input"
-        )
-        user_inputs["threshold"] = col2.number_input(
-            "Threshold (if timestamp > threshold, bomb triggers):",
-            0, 2147483647, 1800000000, key="threshold_input"
-        )
-        st.caption(
-            "For full trigger (100% risk): set Simulated timestamp *much* greater than Threshold.\n"
-            "For no trigger (0% risk): set Simulated timestamp *much* less than Threshold."
-        )
-    elif chosen_pattern == "ARITHMETIC":
-        st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
-        user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
-        user_inputs["val2"] = st.number_input("Value 2:", 0, 100000, 7)
-    # Add UI for other advanced patterns as needed
-
-    circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
-
-    if circuit is not None:
-        score, measurements = run_quantum_analysis(circuit, chosen_pattern)
-        pct, risk_label = format_score(score)
-        st.metric("Quantum Pattern Match Score", pct, risk_label)
-        st.write("**Quantum Circuit Diagram:**")
-        st.code(circuit_to_text(circuit), language="text")
-
-        # -- Small chart with clear explanation for any user --
-        try:
-            buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", width=250)
-            st.markdown("""
-                <div style="background-color:#eef7ff;padding:10px 16px;border-radius:8px;margin-top:3px;">
-                <b>How to read this chart:</b><br>
-                • Each bar shows the probability of the quantum circuit ending in a particular state.<br>
-                • For simple logic/backdoors, only one state (a single bar) will be high—meaning the trigger is rare.<br>
-                • If you’re not a quantum expert, just check the Quantum Pattern Score and Gemini’s explanation.<br>
-                </div>
-            """, unsafe_allow_html=True)
-        except Exception:
-            st.info("Quantum state chart not available for this logic.")
-
-        with st.spinner("Gemini is explaining the result..."):
-            explanation = explain_result(score, chosen_pattern, code_input)
-        st.info("**Gemini AI Explanation:**\n" + explanation)
+    # Choose which patterns to quantum-analyze
+    patterns_to_analyze = []
+    if run_all_quantum:
+        # All risky patterns (that can be mapped)
+        patterns_to_analyze = [
+            pattern_label(p) for p in detected
+            if build_quantum_circuit(pattern_label(p)) is not None
+        ]
     else:
-        st.warning(
-            "❌ Quantum analysis not performed for this pattern. "
-            "Quantum simulation is only run for patterns that can be mapped to quantum circuits."
-        )
-        with st.spinner("Gemini is analyzing the code..."):
-            explanation = explain_result(0.0, "OTHER", code_input)
-        st.info("**Gemini AI Explanation:**\n" + explanation)
+        # Priority order—just the first risky pattern (old default)
+        priority = [
+            "THREE_XOR", "XOR", "AND", "OR", "TIME_BOMB", "ARITHMETIC",
+            "CONTROL_FLOW", "HARDCODED_CREDENTIAL", "WEB_BACKDOOR", "PROBABILISTIC_BOMB"
+        ]
+        for p in priority:
+            if p in [pattern_label(x) for x in detected]:
+                patterns_to_analyze = [p]
+                break
 
-    # Extra warnings for risky patterns
-    if any(pattern_label(p) == "TIME_BOMB" for p in detected):
-        st.warning("⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit.")
-    if any(pattern_label(p) == "CONTROL_FLOW" for p in detected):
-        st.error("🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully.")
-    if any(pattern_label(p) == "HARDCODED_CREDENTIAL" for p in detected):
-        st.warning("🔐 **Hardcoded credential or secret detected!** This is a major enterprise risk.")
-    if any(pattern_label(p) == "WEB_BACKDOOR" for p in detected):
-        st.error("🕵️ **Possible web backdoor detected!** This could expose hidden admin/debug access.")
+    # For each pattern, run quantum analysis and render UI
+    for idx, chosen_pattern in enumerate(patterns_to_analyze):
+        st.markdown(f"---\n### ⚛️ Quantum Analysis: {chosen_pattern.replace('_', ' ').title()}")
+
+        user_inputs = {}
+
+        if chosen_pattern == "THREE_XOR":
+            user_inputs["a_val"] = st.number_input(
+                f"[{chosen_pattern}] Input value A (0 or 1):", 0, 1, 1, key=f"A3_input_{idx}"
+            )
+            user_inputs["b_val"] = st.number_input(
+                f"[{chosen_pattern}] Input value B (0 or 1):", 0, 1, 1, key=f"B3_input_{idx}"
+            )
+            user_inputs["c_val"] = st.number_input(
+                f"[{chosen_pattern}] Input value C (0 or 1):", 0, 1, 1, key=f"C3_input_{idx}"
+            )
+        elif chosen_pattern in ["XOR", "AND", "OR"]:
+            user_inputs["a_val"] = st.number_input(
+                f"[{chosen_pattern}] Input value A (0 or 1):", 0, 1, 1, key=f"A2_input_{idx}"
+            )
+            user_inputs["b_val"] = st.number_input(
+                f"[{chosen_pattern}] Input value B (0 or 1):", 0, 1, 1, key=f"B2_input_{idx}"
+            )
+        elif chosen_pattern == "TIME_BOMB":
+            col1, col2 = st.columns(2)
+            user_inputs["timestamp_val"] = col1.number_input(
+                f"[{chosen_pattern}] Simulated timestamp:",
+                0, 2147483647, 1799999999, key=f"timestamp_input_{idx}"
+            )
+            user_inputs["threshold"] = col2.number_input(
+                f"[{chosen_pattern}] Threshold:",
+                0, 2147483647, 1800000000, key=f"threshold_input_{idx}"
+            )
+            st.caption(
+                "For full trigger (100% risk): set Simulated timestamp *much* greater than Threshold.\n"
+                "For no trigger (0% risk): set Simulated timestamp *much* less than Threshold."
+            )
+        elif chosen_pattern == "ARITHMETIC":
+            user_inputs["val1"] = st.number_input(f"[{chosen_pattern}] Value 1:", 0, 100000, 13)
+            user_inputs["val2"] = st.number_input(f"[{chosen_pattern}] Value 2:", 0, 100000, 7)
+        elif chosen_pattern == "PROBABILISTIC_BOMB":
+            user_inputs["prob"] = st.slider(
+                "Set Probabilistic Trigger Rate (Quantum Bomb chance):",
+                min_value=0.0, max_value=1.0, value=0.3, step=0.01,
+                help="How likely is the hidden logic bomb to trigger? This is modeled as quantum probability."
+            )
+
+        circuit = build_quantum_circuit(chosen_pattern, **user_inputs) if chosen_pattern else None
+
+        if circuit is not None:
+            score, measurements = run_quantum_analysis(circuit, chosen_pattern, **user_inputs)
+            pct, risk_label = format_score(score)
+            st.metric("Quantum Pattern Match Score", pct, risk_label)
+            st.write("**Quantum Circuit Diagram:**")
+            st.code(circuit_to_text(circuit), language="text")
+
+            try:
+                buf = visualize_quantum_state(circuit)
+                st.image(buf, caption="Quantum State Probabilities", width=250)
+                st.markdown("""
+                    <div style="background-color:#eef7ff;padding:10px 16px;border-radius:8px;margin-top:3px;">
+                    <b>How to read this chart:</b><br>
+                    • Each bar shows the probability of the quantum circuit ending in a particular state.<br>
+                    • For simple logic/backdoors, only one state (a single bar) will be high—meaning the trigger is rare.<br>
+                    • For probabilistic bombs, the bars show true quantum risk.<br>
+                    </div>
+                """, unsafe_allow_html=True)
+            except Exception:
+                st.info("Quantum state chart not available for this logic.")
+
+            with st.spinner("Gemini is explaining the result..."):
+                explanation = explain_result(score, chosen_pattern, code_input)
+            st.info("**Gemini AI Explanation:**\n" + explanation)
+        else:
+            st.warning(
+                "❌ Quantum analysis not performed for this pattern. "
+                "Quantum simulation is only run for patterns that can be mapped to quantum circuits."
+            )
+            with st.spinner("Gemini is analyzing the code..."):
+                explanation = explain_result(0.0, "OTHER", code_input)
+            st.info("**Gemini AI Explanation:**\n" + explanation)
+
+        # Extra warnings for risky patterns
+        if chosen_pattern == "TIME_BOMB":
+            st.warning("⏰ **Time-based condition detected!** This may indicate a logic time-bomb or scheduled exploit.")
+        if chosen_pattern == "CONTROL_FLOW":
+            st.error("🛑 **Obfuscated or suspicious control flow detected!** Please review the code carefully.")
+        if chosen_pattern == "HARDCODED_CREDENTIAL":
+            st.warning("🔐 **Hardcoded credential or secret detected!** This is a major enterprise risk.")
+        if chosen_pattern == "WEB_BACKDOOR":
+            st.error("🕵️ **Possible web backdoor detected!** This could expose hidden admin/debug access.")
+        if chosen_pattern == "PROBABILISTIC_BOMB":
+            st.error("⚛️ **Probabilistic logic bomb detected!** This logic is quantum-random and harder to predict or catch with classical tools.")
 
     st.markdown("---")
     st.markdown(
