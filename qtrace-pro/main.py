@@ -50,9 +50,6 @@ if run_clicked:
     logic_blocks = extract_logic_blocks(code_input)
     patterns = detect_patterns(logic_blocks)
 
-    def pattern_label(p):
-        return str(p)
-
     detected = [p for p in patterns if p != "UNKNOWN"]
 
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
@@ -73,11 +70,11 @@ if run_clicked:
     else:
         st.info("No logic blocks extracted (no conditional logic or parser failed).")
 
-    # Show quantum analysis for each detected quantum-native pattern
+    # Arguments for brutal quantum circuit building per pattern
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
         "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
-        "CHAINED_BOMB": {"chain_length": 3, "prob": 0.14},
+        "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
         "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
         "QUANTUM_ANTIDEBUG": {"prob": 0.08},
         "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
@@ -92,7 +89,7 @@ if run_clicked:
             pct, risk_label = format_score(score)
             st.metric("Quantum Pattern Risk", pct, risk_label)
             st.code(circuit_to_text(circuit), language="text")
-            # Quantum probability/state chart
+            # Show quantum state probabilities chart
             try:
                 buf = visualize_quantum_state(circuit, f"Quantum State ({p})")
                 st.image(buf, caption="Quantum State Probabilities", width=350)
