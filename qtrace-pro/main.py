@@ -7,7 +7,7 @@ from quantum_engine import (
 )
 from quantum_graph import plot_quantum_risk_graph
 from gemini_explainer import explain_result as generate_explanation
-from quantum_redteam import generate_brutal_redteam_suite
+from quantum_redteam import generate_brutal_redteam_suite()
 
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
