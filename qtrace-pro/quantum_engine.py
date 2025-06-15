@@ -3,28 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-def build_quantum_circuit(pattern, **kwargs):
-    if pattern == "XOR":
-        return build_xor_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
-    elif pattern == "THREE_XOR":
-        return build_3xor_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1), kwargs.get("c_val", 1))
-    elif pattern == "AND":
-        return build_and_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
-    elif pattern == "OR":
-        return build_or_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
-    elif pattern == "TIME_BOMB":
-        return build_time_bomb_circuit(kwargs.get("timestamp_val", 1799999999), kwargs.get("threshold", 1800000000))
-    elif pattern == "ARITHMETIC":
-        return build_arithmetic_circuit(kwargs.get("val1", 13), kwargs.get("val2", 7))
-    elif pattern == "CONTROL_FLOW":
-        return build_control_flow_circuit()
-    elif pattern == "HARDCODED_CREDENTIAL":
-        return build_hardcoded_cred_circuit()
-    elif pattern == "WEB_BACKDOOR":
-        return build_web_backdoor_circuit()
-    else:
-        return None
-
+# --- Classical Logic Circuits (originals, kept for compatibility) ---
 def build_xor_circuit(a_val=1, b_val=1):
     qubits = cirq.LineQubit.range(3)
     circuit = cirq.Circuit()
@@ -120,11 +99,48 @@ def build_web_backdoor_circuit():
     circuit = cirq.Circuit([cirq.H(qubits[0]), cirq.measure(qubits[0], key='result')])
     return circuit
 
+# --- "Real" Quantum Logic: Probabilistic & Uncertain Logic Circuits ---
+def build_probabilistic_logic_circuit(prob=0.5):
+    """Build a circuit where the logic fires with probability `prob` due to quantum superposition."""
+    qubits = cirq.LineQubit.range(1)
+    circuit = cirq.Circuit()
+    theta = 2 * np.arcsin(np.sqrt(prob))
+    circuit.append(cirq.ry(theta)(qubits[0]))
+    circuit.append(cirq.measure(qubits[0], key='result'))
+    return circuit
+
+# --- Pattern to Circuit Mapping ---
+def build_quantum_circuit(pattern, **kwargs):
+    if pattern == "XOR":
+        return build_xor_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
+    elif pattern == "THREE_XOR":
+        return build_3xor_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1), kwargs.get("c_val", 1))
+    elif pattern == "AND":
+        return build_and_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
+    elif pattern == "OR":
+        return build_or_circuit(kwargs.get("a_val", 1), kwargs.get("b_val", 1))
+    elif pattern == "TIME_BOMB":
+        return build_time_bomb_circuit(kwargs.get("timestamp_val", 1799999999), kwargs.get("threshold", 1800000000))
+    elif pattern == "ARITHMETIC":
+        return build_arithmetic_circuit(kwargs.get("val1", 13), kwargs.get("val2", 7))
+    elif pattern == "CONTROL_FLOW":
+        return build_control_flow_circuit()
+    elif pattern == "HARDCODED_CREDENTIAL":
+        return build_hardcoded_cred_circuit()
+    elif pattern == "WEB_BACKDOOR":
+        return build_web_backdoor_circuit()
+    elif pattern == "PROBABILISTIC_BOMB":
+        return build_probabilistic_logic_circuit(kwargs.get("prob", 0.3))
+    else:
+        return None
+
+# --- Quantum Risk Boosts for Patterns (Tweak as needed) ---
 QUANTUM_RISK_BOOST = {
     "CONTROL_FLOW": 0.08,
     "ARITHMETIC": 0.09,
     "HARDCODED_CREDENTIAL": 0.07,
     "WEB_BACKDOOR": 0.08,
+    "PROBABILISTIC_BOMB": 0.2,  # Example, as this pattern is inherently risky
 }
 
 def run_quantum_analysis(circuit, pattern="XOR", **kwargs):
@@ -141,6 +157,9 @@ def run_quantum_analysis(circuit, pattern="XOR", **kwargs):
             score = 1.0
         else:
             score = 0.0
+    elif pattern == "PROBABILISTIC_BOMB":
+        # The quantum state already sets the score as the measured probability.
+        pass
     else:
         score = min(1.0, score + QUANTUM_RISK_BOOST.get(pattern, 0.0))
     return score, measurements
@@ -176,8 +195,9 @@ def visualize_quantum_state(circuit, title="Quantum State Probabilities"):
     return buf
 
 if __name__ == "__main__":
-    circuit = build_time_bomb_circuit(1800000101, 1800000000)
-    buf = visualize_quantum_state(circuit)
-    with open("quantum_state.png", "wb") as f:
-        f.write(buf.read())
-    print("Saved state visualization as quantum_state.png")
+    # Demo: Probabilistic Bomb with 30% trigger chance
+    circuit = build_probabilistic_logic_circuit(prob=0.3)
+    sim = cirq.Simulator()
+    result = sim.run(circuit, repetitions=500)
+    score = np.mean(result.measurements['result'])
+    print(f"Probabilistic Bomb Triggered in {score * 100:.1f}% of runs")
