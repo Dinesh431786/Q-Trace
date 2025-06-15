@@ -1,55 +1,44 @@
 import streamlit as st
 from code_parser import extract_logic_blocks
-from pattern_matcher import detect_patterns, LogicPattern
+from pattern_matcher import detect_patterns
 from quantum_engine import (
     build_quantum_circuit, run_quantum_analysis, format_score,
     circuit_to_text, visualize_quantum_state
 )
-from gemini_explainer import explain_result  # BRUTAL: Gemini explanations!
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM", layout="wide")
-st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM BEAST EDITION")
+st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM (Python Only)", layout="wide")
+st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 st.markdown("""
-Detects only true quantum-native, adversarial threats: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
+Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
+
+**Only Python code is supported in this brutal edition.**
 """)
 
-LANGUAGES = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
-EXT_MAP = {".py": "python", ".c": "c", ".js": "javascript", ".java": "java", ".go": "go", ".rs": "rust", ".sol": "solidity"}
+# Only accept Python code
+st.markdown("**Upload a Python file (.py):**")
+uploaded_file = st.file_uploader(
+    "Upload Python code file", type=["py"], key="file_upload"
+)
 
-st.markdown("**Upload a code file (any supported language):**")
-uploaded_file = st.file_uploader("Upload code file", type=[e[1:] for e in EXT_MAP], key="file_upload")
-
-default_code = """
+default_code = '''
 import random
 def rare_bomb():
     if random.random() < 0.22:
-        os.system('shutdown -h now')
+        os.system("shutdown -h now")
         grant_root_access()
-"""
+'''
 
 file_code = None
-detected_lang = None
 
 if uploaded_file:
     file_code = uploaded_file.read().decode(errors="ignore")
-    fname = uploaded_file.name.lower()
-    ext = next((e for e in EXT_MAP if fname.endswith(e)), None)
-    if ext:
-        detected_lang = EXT_MAP[ext]
 
-lang_index = 0
-if detected_lang and detected_lang in LANGUAGES:
-    lang_index = LANGUAGES.index(detected_lang)
-
-language = st.selectbox(
-    "Select language:", LANGUAGES, index=lang_index,
-    help="Auto-set by file upload if possible. You can override manually."
-)
+language = "python"
 
 code_input = st.text_area(
-    f"Paste your code snippet ({', '.join(LANGUAGES)} supported):",
+    "Paste your Python code snippet:",
     height=240,
     value=file_code if file_code else default_code,
     key="main_code_input"
@@ -58,15 +47,22 @@ code_input = st.text_area(
 run_clicked = st.button("⚡️ Brutal Quantum Analysis")
 
 if run_clicked:
-    logic_blocks = extract_logic_blocks(code_input, language=language)
-    patterns = detect_patterns(logic_blocks, language=language)
+    logic_blocks = extract_logic_blocks(code_input)
+    patterns = detect_patterns(logic_blocks)
 
-    detected = [p for p in patterns if p != LogicPattern.UNKNOWN]
+    def pattern_label(p):
+        return str(p)
+
+    detected = [p for p in patterns if p != "UNKNOWN"]
+
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
     if detected:
         st.success(", ".join(detected))
     else:
-        st.info("No quantum-native, adversarial logic detected. (Safe code or only classical/static risk)")
+        st.info(
+            "No quantum-native, adversarial logic detected. (Safe code or only classical/static risk)\n\n"
+            "⚠️ Note: If your code uses helper functions, brutal detection works best if you paste all helper logic inline."
+        )
 
     st.subheader("🧩 Extracted Logic Blocks")
     if logic_blocks:
@@ -77,7 +73,7 @@ if run_clicked:
     else:
         st.info("No logic blocks extracted (no conditional logic or parser failed).")
 
-    # Show analysis for each detected quantum-native pattern
+    # Show quantum analysis for each detected quantum-native pattern
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
         "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
@@ -102,20 +98,8 @@ if run_clicked:
                 st.image(buf, caption="Quantum State Probabilities", width=350)
             except Exception:
                 st.info("Quantum state chart unavailable for this pattern.")
-            # Gemini explanation block (brutal, clear)
-            try:
-                explanation = explain_result(score, p, code_input)
-                st.info("**Gemini AI Explanation:**\n" + explanation)
-            except Exception as e:
-                st.warning(f"Gemini explanation unavailable: {e}")
         else:
             st.warning("No quantum circuit for this pattern. (Extend engine for new quantum pattern support!)")
-            # Still try to get Gemini's view of the pattern
-            try:
-                explanation = explain_result(0.0, p, code_input)
-                st.info("**Gemini AI Explanation:**\n" + explanation)
-            except Exception as e:
-                st.warning(f"Gemini explanation unavailable: {e}")
 
     st.markdown("---")
-    st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Edition")
+    st.caption("Built with Cirq, Streamlit, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Python Edition")
