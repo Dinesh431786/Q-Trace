@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from code_parser import extract_logic_blocks
 from pattern_matcher import detect_patterns
 from quantum_engine import (
@@ -8,8 +9,9 @@ from quantum_engine import (
 from quantum_graph import plot_quantum_risk_graph
 from gemini_explainer import explain_result as generate_explanation
 from quantum_redteam import generate_python_redteam_suite
+from utils import *  # Import necessary utilities
 
-# Initialize session state for persisting results
+# Initialize session state
 if 'analysis_done' not in st.session_state:
     st.session_state.analysis_done = False
 if 'detected' not in st.session_state:
@@ -23,20 +25,19 @@ if 'graph_image' not in st.session_state:
 if 'code_input' not in st.session_state:
     st.session_state.code_input = ''
 
-# Page Config
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
-st.markdown("""
-Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.  
-Shows *real* quantum risk—no classical simulation, no safe mode.
+# Sidebar for options
+with st.sidebar:
+    st.subheader("Options")
+    if st.button("Reset"):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.experimental_rerun()
 
-**Only Python code is supported in this brutal edition.**
-""")
-
-# File Upload
+# Upload or paste code
 uploaded_file = st.file_uploader("Upload Python code file", type=["py"], key="file_upload")
-
 default_code = '''import random
 def rare_bomb():
     if random.random() < 0.22:
@@ -44,13 +45,7 @@ def rare_bomb():
         grant_root_access()
 '''
 
-# Load uploaded file or default code
-if uploaded_file:
-    file_code = uploaded_file.read().decode(errors="ignore")
-else:
-    file_code = default_code
-
-# Code input area
+file_code = uploaded_file.read().decode(errors="ignore") if uploaded_file else default_code
 code_input = st.text_area(
     "Paste your Python code snippet:",
     height=240,
@@ -70,7 +65,12 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
     st.session_state.analysis_done = True
 
     # Extract logic blocks
-    st.session_state.logic_blocks = extract_logic_blocks(code_input)
+    try:
+        st.session_state.logic_blocks = extract_logic_blocks(code_input)
+    except Exception as e:
+        st.error(f"Error parsing code: {str(e)}")
+        st.stop()
+
     patterns = detect_patterns(st.session_state.logic_blocks)
     st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
     st.session_state.quantum_scores = []
@@ -86,6 +86,7 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
     }
 
     # Run quantum analysis
+    start_time = time.time()
     quantum_scores = []
     for pattern in st.session_state.detected:
         args = brutal_pattern_args.get(pattern, {})
@@ -96,6 +97,9 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
             quantum_scores.append(score)
 
             st.session_state.quantum_scores = quantum_scores
+
+    end_time = time.time()
+    st.info(f"Analysis completed in {end_time - start_time:.2f} seconds.")
 
     # Build entanglement graph
     logic_blocks = st.session_state.logic_blocks
