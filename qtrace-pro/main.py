@@ -19,7 +19,6 @@ Shows *real* quantum risk—no classical simulation, no safe mode.
 **Only Python code is supported in this brutal edition.**
 """)
 
-st.markdown("**Upload a Python file (.py):**")
 uploaded_file = st.file_uploader("Upload Python code file", type=["py"], key="file_upload")
 
 default_code = '''import random
@@ -29,41 +28,33 @@ def rare_bomb():
         grant_root_access()
 '''
 
-file_code = None
-if uploaded_file:
-    file_code = uploaded_file.read().decode(errors="ignore")
+file_code = uploaded_file.read().decode(errors="ignore") if uploaded_file else None
 
 code_input = st.text_area(
-    "Paste your Python code snippet:",
-    height=240,
+    "Paste your Python code snippet:", height=240,
     value=file_code if file_code else default_code,
     key="main_code_input"
 )
 
-run_clicked = st.button("⚡️ Brutal Quantum Analysis")
-
-if run_clicked:
+if st.button("⚡️ Brutal Quantum Analysis"):
     logic_blocks = extract_logic_blocks(code_input)
     patterns = detect_patterns(logic_blocks)
     detected = [p for p in patterns if p != "UNKNOWN"]
 
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
-    if detected:
-        st.success(", ".join(detected))
-    else:
-        st.info(
-            "No quantum-native, adversarial logic detected. (Safe code or only classical/static risk)\n\n"
-            "⚠️ Note: Brutal detection works best if you paste all helper logic inline."
-        )
+    st.success(", ".join(detected)) if detected else st.info(
+        "No quantum-native, adversarial logic detected.\n\n"
+        "⚠️ Note: Brutal detection works best if you paste all helper logic inline."
+    )
 
     st.subheader("🧩 Extracted Logic Blocks")
     if logic_blocks:
-        for i, block in enumerate(logic_blocks):
+        for block in logic_blocks:
             st.code(f"if {block['condition']}:\n    " + "\n    ".join(block['body']), language="python")
             if block['calls']:
                 st.caption("Calls: " + ", ".join(block['calls']))
     else:
-        st.info("No logic blocks extracted (no conditional logic or parser failed).")
+        st.info("No logic blocks extracted.")
 
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
@@ -74,52 +65,45 @@ if run_clicked:
         "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
     }
 
-    st.subheader("⚛️ Quantum Pattern Analyses")
-
     quantum_scores = []
     for p in detected:
-        args = brutal_pattern_args.get(p, {})
-        circuit = build_quantum_circuit(p, **args)
+        st.markdown(f"## ⚛️ Quantum Analysis: `{p}`")
+        circuit = build_quantum_circuit(p, **brutal_pattern_args.get(p, {}))
         if circuit:
-            score, measurements, _ = run_quantum_analysis(circuit, p)
+            score, _, _ = run_quantum_analysis(circuit, p)
             pct, risk_label = format_score(score)
             quantum_scores.append(score)
-            st.markdown(f"### Pattern: `{p}`")
             st.metric("Quantum Pattern Risk", pct, risk_label)
             st.code(circuit_to_text(circuit), language="text")
             try:
                 buf = visualize_quantum_state(circuit, f"Quantum State ({p})")
                 st.image(buf, caption="Quantum State Probabilities", width=350)
-            except Exception:
-                st.info("Quantum state chart unavailable for this pattern.")
-            # Gemini explanation inline
-            explanation = generate_explanation(code_input, p)
-            if explanation:
-                st.markdown("**Gemini AI Explanation:**")
-                st.info(explanation)
+            except Exception as e:
+                st.warning(f"Quantum state visualization error: {e}")
+
+            try:
+                explanation = generate_explanation(score, p, code_input)
+                st.info(f"**Gemini AI Explanation:**\n{explanation}")
+            except Exception as e:
+                st.warning(f"Gemini explanation error: {e}")
         else:
-            st.warning(f"No quantum circuit for `{p}`. Extend engine for new pattern support.")
+            st.warning(f"No quantum circuit defined for `{p}`.")
 
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
-    entangled_pairs = []
-    for i, block in enumerate(logic_blocks):
-        for call in block['calls']:
-            for j, blk in enumerate(logic_blocks):
-                if call in "".join(blk['body']):
-                    entangled_pairs.append((i, j))
+    entangled_pairs = [(i, j) for i, blk in enumerate(logic_blocks)
+                       for call in blk['calls']
+                       for j, target_blk in enumerate(logic_blocks)
+                       if call in ''.join(target_blk['body'])]
 
     buf = plot_quantum_risk_graph(
-        logic_blocks,
-        quantum_scores + [0] * (len(logic_blocks) - len(quantum_scores)),
-        entangled_pairs=entangled_pairs,
-        streamlit_buf=True
+        logic_blocks, quantum_scores + [0]*(len(logic_blocks)-len(quantum_scores)),
+        entangled_pairs=entangled_pairs, streamlit_buf=True
     )
     st.image(buf)
 
     if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
         st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
-        redteam_samples = generate_brutal_redteam_suite(3)
-        for sample in redteam_samples:
+        for sample in generate_python_redteam_suite(3):
             st.code(sample, language="python")
 
 st.markdown("---")
