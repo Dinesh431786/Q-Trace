@@ -1,25 +1,49 @@
 def format_score(score):
     """
-    Returns (score_string, risk_label) for the UI.
-    Always safe: score can be None, not a number, etc.
+    Convert quantum risk score (0.0-1.0) to percentage and label.
     """
-    try:
-        if score is None or not isinstance(score, (int, float)):
-            return "N/A", "UNKNOWN"
-        elif score < 0.4:
-            return f"{score*100:.1f}%", "LOW RISK"
-        elif score < 0.7:
-            return f"{score*100:.1f}%", "MODERATE RISK"
-        else:
-            return f"{score*100:.1f}%", "HIGH RISK"
-    except Exception:
-        return "N/A", "UNKNOWN"
+    pct = f"{score * 100:.1f}%"
+    if score > 0.8:
+        return pct, "HIGH RISK"
+    elif score > 0.5:
+        return pct, "MODERATE RISK"
+    elif score > 0.25:
+        return pct, "LOW RISK"
+    return pct, "SAFE"
 
-def circuit_to_text(circuit):
+def safe_get(d, key, default=None):
     """
-    Returns a text/ascii diagram of the quantum circuit.
+    Safely get a value from a dict, with fallback.
     """
     try:
-        return str(circuit)
-    except Exception:
-        return "<circuit unavailable>"
+        return d[key]
+    except (KeyError, TypeError):
+        return default
+
+def flatten_probs(prob_vector, max_len=8):
+    """
+    Flatten or pad probability vectors for ML input.
+    """
+    flat = list(prob_vector)
+    if len(flat) < max_len:
+        flat += [0.0] * (max_len - len(flat))
+    return flat[:max_len]
+
+def normalize_name(name):
+    """
+    Normalize function/var names for graphing and ML.
+    """
+    return "".join([c if c.isalnum() else "_" for c in name])
+
+def is_quantum_pattern(pattern):
+    """
+    Check if a pattern is quantum-native (brutal mode).
+    """
+    return pattern in [
+        "PROBABILISTIC_BOMB",
+        "ENTANGLED_BOMB",
+        "CHAINED_BOMB",
+        "QUANTUM_STEGANOGRAPHY",
+        "QUANTUM_ANTIDEBUG",
+        "CROSS_FUNCTION_QUANTUM_BOMB"
+    ]
