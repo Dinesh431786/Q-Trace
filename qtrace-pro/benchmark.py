@@ -31,7 +31,7 @@ if (random.randint(0,7) == 3): k += 1
 if (random.randint(0,11) == 5): k += 1
 if k == 2: os.system('shutdown -h now')
 """,
-        "pattern": "CHAINED_BOMB"
+        "pattern": "CHAINED_QUANTUM_BOMB"
     },
     {
         "name": "Cross-function Quantum Bomb (Python)",
@@ -68,33 +68,52 @@ if random.random() < 0.09:
 def run_brutal_benchmark(output_csv="brutal_benchmark_results.csv"):
     rows = []
     print("BRUTAL QUANTUM Pattern Detection Benchmark:\n")
+
     for test in BRUTAL_TEST_CASES:
-        logic_blocks = extract_logic_blocks(test["code"], language="python")  # force python
-        patterns = detect_patterns(logic_blocks, language="python")
+        # Extract logic blocks without language arg (now supported in parser)
+        logic_blocks = extract_logic_blocks(test["code"])  # Removed `language="python"`
+
+        # Detect patterns
+        patterns = detect_patterns(logic_blocks)
         detected = [p for p in patterns if p != "UNKNOWN"]
-        brutal_pattern = test["pattern"]
+        expected_pattern = test["pattern"]
+
+        # Format output
         quantum_score = "N/A"
-        if brutal_pattern in detected:
-            circuit = build_quantum_circuit(brutal_pattern)
-            score, _, _ = run_quantum_analysis(circuit, brutal_pattern)
-            pct, risk_label = format_score(score)
-            quantum_score = f"{pct} ({risk_label})"
+        risk_label = ""
+        if expected_pattern in detected:
+            try:
+                circuit = build_quantum_circuit(expected_pattern)
+                score, _, _ = run_quantum_analysis(circuit, expected_pattern)
+                quantum_score, risk_label = format_score(score)
+                quantum_score = f"{quantum_score} ({risk_label})"
+            except Exception as e:
+                quantum_score = "Error"
 
         row = {
             "Case": test["name"],
-            "Language": "python",
+            "Language": test["language"],
             "Detected": ", ".join(detected) if detected else "UNKNOWN",
-            "Expected": brutal_pattern,
+            "Expected": expected_pattern,
             "QuantumScore": quantum_score
         }
-        print(f"Test: {row['Case']}\n  - Detected: {row['Detected']}\n  - Expected: {row['Expected']}\n  - Quantum: {quantum_score}\n")
+
+        print(f"Test: {row['Case']}")
+        print(f"  - Detected: {row['Detected']}")
+        print(f"  - Expected: {row['Expected']}")
+        print(f"  - Quantum Risk: {row['QuantumScore']}\n")
         rows.append(row)
 
-    with open(output_csv, "w", newline="") as f:
+    # Save results to CSV
+    with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
-    print(f"Results saved to {output_csv}")
 
+    print(f"✅ Benchmark completed. Results saved to '{output_csv}'")
+    return rows
+
+
+# --- Run Benchmark Locally ---
 if __name__ == "__main__":
-    run_brutal_benchmark()
+    benchmark_data = run_brutal_benchmark()
