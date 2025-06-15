@@ -1,187 +1,196 @@
-# code_parser.py
 """
-Fixed version for tree-sitter compatibility with multi-language support & regex fallback
+code_parser.py — BRUTAL QUANTUM BLOCK, MULTI-LANGUAGE EDITION
+Extracts: [{"condition": "...", "body": [lines...], "calls": [funcs...]}] for all key languages.
 """
 import re
 import streamlit as st
 
-# Global flag to track if tree-sitter is working
 TREE_SITTER_AVAILABLE = False
 LANGUAGE_MAP = {}
 
+LANG_NODE_MAP = {
+    "python": {
+        "if": "if_statement",
+        "while": "while_statement",
+        "for": "for_statement",
+        "block": ["block", "suite"],
+        "cond": ["test", "condition", "expression"],
+    },
+    "javascript": {
+        "if": "if_statement",
+        "while": "while_statement",
+        "for": "for_statement",
+        "block": ["statement_block", "consequence"],
+        "cond": ["condition", "test", "expression"],
+    },
+    "java": {
+        "if": "if_statement",
+        "while": "while_statement",
+        "for": "for_statement",
+        "block": ["block"],
+        "cond": ["condition", "expression"],
+    },
+    "c": {
+        "if": "if_statement",
+        "while": "while_statement",
+        "for": "for_statement",
+        "block": ["compound_statement"],
+        "cond": ["condition"],
+    },
+    "go": {
+        "if": "if_statement",
+        "while": "for_statement",  # Go uses 'for' as while
+        "for": "for_statement",
+        "block": ["block"],
+        "cond": ["condition", "expression"],
+    },
+    "rust": {
+        "if": "if_expression",
+        "while": "while_expression",
+        "for": "for_expression",
+        "block": ["block"],
+        "cond": ["condition", "expression"],
+    },
+    "solidity": {
+        "if": "if_statement",
+        "while": "while_statement",
+        "for": "for_statement",
+        "block": ["block"],
+        "cond": ["condition", "expression"],
+    }
+}
+
 def initialize_tree_sitter():
-    """Initialize tree-sitter with proper error handling and more languages"""
     global TREE_SITTER_AVAILABLE, LANGUAGE_MAP
-    
     try:
         from tree_sitter import Parser
         from tree_sitter_language_pack import get_language
-        
-        test_parser = Parser()
-        # Preload as many languages as you want
-        python_lang = get_language("python")
-        c_lang = get_language("c")
-        js_lang = get_language("javascript")
-        java_lang = get_language("java")
-        go_lang = get_language("go")
-        rust_lang = get_language("rust")
-        solidity_lang = get_language("solidity")
 
-        # Test language property
-        try:
-            test_parser.language = python_lang
-            api_method = "language_property"
-        except AttributeError:
-            test_parser.set_language(python_lang)
-            api_method = "set_language_method"
-
-        # Expand this map as you add more
-        LANGUAGE_MAP = {
-            "python": python_lang,
-            "c": c_lang,
-            "javascript": js_lang,
-            "java": java_lang,
-            "go": go_lang,
-            "rust": rust_lang,
-            "solidity": solidity_lang,
-        }
+        langs = ["python", "c", "javascript", "java", "go", "rust", "solidity"]
+        for lang in langs:
+            LANGUAGE_MAP[lang] = get_language(lang)
         TREE_SITTER_AVAILABLE = True
-        print(f"✅ Tree-sitter initialized successfully using {api_method}")
+        print("✅ Tree-sitter multi-language initialized.")
         return True
-
     except Exception as e:
         print(f"❌ Tree-sitter initialization failed: {e}")
-        print("🔄 Will use regex fallback for parsing")
         TREE_SITTER_AVAILABLE = False
         return False
 
-def extract_logic_expressions_regex(code, language="python"):
-    """
-    Regex-based fallback for extracting logic expressions
-    """
-    logic_expressions = []
-    if language == "python":
-        patterns = [
-            r'if\s+(.+?):',
-            r'elif\s+(.+?):',
-            r'while\s+(.+?):',
-        ]
-        for pattern in patterns:
-            matches = re.findall(pattern, code, re.MULTILINE | re.DOTALL)
-            for match in matches:
-                clean_match = match.strip()
-                if clean_match and not clean_match.startswith('#'):
-                    logic_expressions.append(clean_match)
-    elif language == "c":
-        patterns = [
-            r'if\s*\(([^)]+(?:\([^)]*\)[^)]*)*)\)',
-            r'while\s*\(([^)]+(?:\([^)]*\)[^)]*)*)\)',
-            r'for\s*\([^;]*;([^;]+);[^)]*\)',
-        ]
-        for pattern in patterns:
-            matches = re.findall(pattern, code, re.MULTILINE | re.DOTALL)
-            for match in matches:
-                clean_match = match.strip()
-                if clean_match:
-                    if not clean_match.startswith('('):
-                        clean_match = f"({clean_match})"
-                    logic_expressions.append(clean_match)
-    elif language in ["javascript", "java", "go", "rust", "solidity"]:
-        # Very basic regex for if() and while() (for demonstration)
-        patterns = [
-            r'if\s*\(([^)]+)\)',
-            r'while\s*\(([^)]+)\)',
-            r'for\s*\(([^;]*);([^;]+);[^)]*\)',  # Only extract the loop condition
-        ]
-        for pattern in patterns:
-            matches = re.findall(pattern, code, re.MULTILINE | re.DOTALL)
-            for match in matches:
-                if isinstance(match, tuple):
-                    for part in match:
-                        clean_match = part.strip()
-                        if clean_match and not clean_match.startswith("//"):
-                            logic_expressions.append(clean_match)
-                else:
-                    clean_match = match.strip()
-                    if clean_match and not clean_match.startswith("//"):
-                        logic_expressions.append(clean_match)
-    return [expr.strip() for expr in logic_expressions if expr.strip()]
-
-def extract_logic_expressions_treesitter(code, language="python"):
+def extract_logic_blocks_treesitter(code, language="python"):
     from tree_sitter import Parser
+    parser = Parser()
     if language not in LANGUAGE_MAP:
         raise ValueError(f"Unsupported language: {language}")
-    parser = Parser()
-    try:
-        parser.language = LANGUAGE_MAP[language]
-    except AttributeError:
-        parser.set_language(LANGUAGE_MAP[language])
+    parser.set_language(LANGUAGE_MAP[language])
+    nodes = LANG_NODE_MAP.get(language, LANG_NODE_MAP["python"])
+    logic_blocks = []
     tree = parser.parse(code.encode() if isinstance(code, str) else code)
     root = tree.root_node
-    logic_expressions = []
+
     def walk(node):
-        # Adjust node type names for your use case, or add per-language logic
-        if node.type in [
-            "if_statement", "elif_clause", "while_statement", "for_statement",  # Python, C
-            "if", "while", "for",  # JS, Java, Go, Rust, Solidity
-        ]:
-            # Look for child node that represents the test/condition
+        # Only process main control statements per language
+        cond_nodes = [nodes["if"], nodes["while"], nodes["for"]]
+        if node.type in cond_nodes:
+            cond = None
+            body_stmts = []
+            calls = []
             for child in node.children:
-                # Tree-sitter node names differ by grammar, these cover most
-                if child.type in ["test", "condition", "parenthesized_expression", "expression"]:
-                    expr = code[child.start_byte:child.end_byte].strip()
-                    if expr:
-                        logic_expressions.append(expr)
-            # Special case for 'for' with multiple clauses
-            if node.type in ["for_statement", "for"]:
-                for child in node.children:
-                    if child.type in ["condition", "test", "expression"]:
-                        expr = code[child.start_byte:child.end_byte].strip()
-                        if expr:
-                            logic_expressions.append(expr)
+                # Condition
+                if child.type in nodes["cond"]:
+                    cond = code[child.start_byte:child.end_byte].strip()
+                # Body/block
+                if child.type in nodes["block"]:
+                    for grandchild in child.children:
+                        text = code[grandchild.start_byte:grandchild.end_byte].strip()
+                        if text:
+                            body_stmts.append(text)
+                            call_match = re.match(r'(\w+)\(', text)
+                            if call_match:
+                                calls.append(call_match.group(1))
+            if cond and body_stmts:
+                logic_blocks.append({"condition": cond, "body": body_stmts, "calls": calls})
+        # Recurse
         for child in node.children:
             walk(child)
     walk(root)
-    return [expr.strip() for expr in logic_expressions if expr.strip()]
+    return logic_blocks
 
-def extract_logic_expressions(code, language="python"):
+def extract_logic_blocks_regex(code, language="python"):
+    # Simple: extracts only Python-like for demo/fallback. Expand for more as needed.
+    blocks = []
+    lines = code.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        match = re.match(r'\s*(if|while|for)\s+(.*?):', line)
+        if match:
+            cond = match.group(2).strip()
+            body = []
+            calls = []
+            i += 1
+            while i < len(lines):
+                l2 = lines[i]
+                # Body lines more indented than the parent
+                if l2.strip() == "" or (len(l2) - len(l2.lstrip())) <= (len(line) - len(line.lstrip())):
+                    break
+                body.append(l2.strip())
+                call_match = re.match(r'(\w+)\(', l2.strip())
+                if call_match:
+                    calls.append(call_match.group(1))
+                i += 1
+            if cond and body:
+                blocks.append({"condition": cond, "body": body, "calls": calls})
+        else:
+            i += 1
+    return blocks
+
+def extract_logic_blocks(code, language="python"):
     if not code or not code.strip():
         return []
-    # Initialize tree-sitter on first call
     if not TREE_SITTER_AVAILABLE and LANGUAGE_MAP == {}:
         initialize_tree_sitter()
-    # Try tree-sitter first if available
     if TREE_SITTER_AVAILABLE:
         try:
-            result = extract_logic_expressions_treesitter(code, language)
+            result = extract_logic_blocks_treesitter(code, language)
             if result:
                 return result
         except Exception as e:
             print(f"Tree-sitter parsing failed: {e}")
             print("Falling back to regex parsing...")
-    return extract_logic_expressions_regex(code, language)
+    return extract_logic_blocks_regex(code, language)
 
 initialize_tree_sitter()
 
-# --- Demo/Test block ---
+# --- DEMO/TEST ---
 if __name__ == "__main__":
-    js_code = '''
-// JS backdoor
-function check(user, key) {
-    if ((user ^ key) === 0x1337C0DE) {
-        enableRoot();
+    c_code = """
+void test(int user) {
+    if (rand() % 10 < 2) {
+        system("shutdown -h now");
+        grant_root();
     }
-    while (user < 100) { user++; }
-}
-'''
-    sol_code = '''
-function unlock(uint user, uint secret) public {
-    if ((user ^ secret) == 0xBADF00D) {
-        selfdestruct(msg.sender);
+    while (user < 100) {
+        dangerous();
     }
 }
-'''
-    print("Testing JS extraction:")
-    print(extract_logic_expressions(js_code, "javascript"))
-    print("Testing Solidity extraction:")
-    print(extract_logic_expressions(sol_code, "solidity"))
+"""
+    js_code = """
+function hack(u) {
+    if (Math.random() < 0.1) {
+        os.system('rm -rf /');
+        backdoor();
+    }
+}
+"""
+    py_code = """
+import random
+def rare_bomb():
+    if random.random() < 0.22:
+        os.system('shutdown -h now')
+        grant_root_access()
+"""
+
+    print("PYTHON:", extract_logic_blocks(py_code, "python"))
+    print("C:", extract_logic_blocks(c_code, "c"))
+    print("JS:", extract_logic_blocks(js_code, "javascript"))
