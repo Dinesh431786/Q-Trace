@@ -9,78 +9,98 @@ class LogicPattern:
     CHAINED_QUANTUM_BOMB = "CHAINED_QUANTUM_BOMB"
     UNKNOWN = "UNKNOWN"
 
+
 def _is_dangerous_call(stmt):
-    return any(
-        danger in stmt.lower() for danger in [
-            "os.system", "exec", "subprocess", "shutdown", "selfdestruct", "grant_root",
-            "open(", "delete", "remove", "pickle", "eval", "marshal", "write", "chmod"
-        ]
-    )
+    """Detects dangerous function calls or system interactions"""
+    danger_keywords = [
+        r"os\.system", r"exec\(", r"subprocess\.", r"shutdown", r"selfdestruct",
+        r"grant_root", r"open$.*w", r"delete", r"remove", r"pickle", r"eval$",
+        r"marshal", r"write", r"chmod", r"socket\.create_connection", r"connect\(",
+        r"download", r"malicious", r"payload", r"reverse_shell", r"exploit"
+    ]
+    return any(re.search(kw, stmt.lower()) for kw in danger_keywords)
+
 
 def _is_randomness(stmt):
-    return any(
-        rng in stmt.lower() for rng in [
-            "random.random", "random.randint", "random.choice",
-            "secrets.randbelow", "np.random", "quantum_rng", "qrng"
-        ]
-    )
+    """Detects randomness sources (probabilistic behavior)"""
+    randomness_keywords = [
+        r"random\.random", r"random\.randint", r"random\.choice",
+        r"secrets\.randbelow", r"np\.random", r"quantum_rng", r"qrng",
+        r"crypto\.random", r"secrets\.token_bytes", r"random\.uniform"
+    ]
+    return any(re.search(kw, stmt.lower()) for kw in randomness_keywords)
+
 
 def _is_antidebug(stmt):
-    return any(antid in stmt.lower() for antid in [
-        "time.sleep", "signal.pause", "inspect.", "sys.settrace", "ptrace", "anti_debug", "traceback"
-    ])
+    """Detects anti-debugging, timing tricks, introspection checks"""
+    antidbg_keywords = [
+        r"time\.sleep", r"signal\.pause", r"inspect\.", r"sys\.settrace",
+        r"ptrace", r"anti_debug", r"traceback", r"__debug__", r"getframeinfo",
+        r"debugger", r"pdb\.", r"breakpoint", r"wait_for_input", r"input$"
+    ]
+    return any(re.search(kw, stmt.lower()) for kw in antidbg_keywords)
+
 
 def detect_patterns(logic_blocks):
     """
     Accepts a list of logic blocks:
     Each block: {"condition": "...", "body": [stmts], "calls": [funcs]}
+
     Returns: list of detected quantum/adversarial patterns (Python only).
     """
     patterns = set()
     for block in logic_blocks:
-        cond = block.get("condition", "").lower()
-        body = [b.lower() for b in block.get("body", [])]
+        cond = block.get("condition", "")
+        body = block.get("body", [])
         calls = block.get("calls", [])
-        body_all = " ".join(body)
 
-        # PROBABILISTIC BOMB (random in condition + dangerous in body)
-        if _is_randomness(cond) and any(_is_dangerous_call(stmt) for stmt in body):
+        if not cond or not isinstance(body, list):
+            continue
+
+        cond_lower = cond.lower()
+        body_all = " ".join([str(b).lower() for b in body])
+        call_all = " ".join([str(c).lower() for c in calls])
+
+        # PROBABILISTIC BOMB: Random condition + dangerous action
+        has_random_cond = _is_randomness(cond)
+        has_danger_body = any(_is_dangerous_call(str(stmt)) for stmt in body)
+
+        if has_random_cond and has_danger_body:
             patterns.add(LogicPattern.PROBABILISTIC_BOMB)
 
-        # ENTANGLED BOMB (multiple random/dangerous or chained)
-        if (
-            sum(_is_randomness(stmt) for stmt in [cond] + body) >= 2 and
-            sum(_is_dangerous_call(stmt) for stmt in body) >= 2
-        ):
+        # ENTANGLED BOMB: Multiple random elements + multiple dangers
+        random_count = sum(1 for stmt in [cond] + body if _is_randomness(str(stmt)))
+        danger_count = sum(1 for stmt in body if _is_dangerous_call(str(stmt)))
+
+        if random_count >= 2 and danger_count >= 2:
             patterns.add(LogicPattern.ENTANGLED_BOMB)
 
-        # CHAINED/DEEP BOMB (danger in cross-function call)
+        # CHAINED BOMB: Dangerous function call in cross-function chain
         for call in calls:
-            if "danger" in call or "backdoor" in call or "root" in call or "admin" in call:
+            if re.search(r'danger|root|admin|hack|backdoor|malicious', str(call).lower()):
                 patterns.add(LogicPattern.CHAINED_QUANTUM_BOMB)
                 break
 
-        # QUANTUM STEGANOGRAPHY (encode/decode, xor, hide + randomness)
-        if (
-            re.search(r'encode|decode|stego|bitwise|xor|hide|obfuscate', body_all)
-            and _is_randomness(cond)
-        ):
+        # QUANTUM STEGANOGRAPHY: Hiding data using randomness
+        stego_indicators = r'encode|decode|stego|bitwise|xor|hide|obfuscate'
+        if re.search(stego_indicators, body_all) and _is_randomness(cond):
             patterns.add(LogicPattern.QUANTUM_STEGANOGRAPHY)
 
-        # QUANTUM ANTI-DEBUGGING
+        # QUANTUM ANTIDEBUG: Anti-debugging + randomness
         if _is_antidebug(body_all) and _is_randomness(cond):
             patterns.add(LogicPattern.QUANTUM_ANTIDEBUG)
 
-        # CROSS-FUNCTIONAL BOMB (random/danger across helpers)
-        if (
-            len(calls) > 0
-            and any(_is_randomness(cond) or _is_randomness(call) for call in calls)
+        # CROSS-FUNCTION BOMB: Randomness in condition + function call graph
+        if len(calls) > 0 and (
+            _is_randomness(cond) or any(_is_randomness(call) for call in calls)
         ):
             patterns.add(LogicPattern.CROSS_FUNCTION_QUANTUM_BOMB)
 
     if not patterns:
         patterns.add(LogicPattern.UNKNOWN)
+
     return list(patterns)
+
 
 # --- Example brutal quantum logic input for testing ---
 if __name__ == "__main__":
