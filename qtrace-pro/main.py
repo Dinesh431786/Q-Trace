@@ -1,5 +1,8 @@
 import streamlit as st
 import time
+import numpy as np
+
+# Core modules
 from code_parser import extract_logic_blocks
 from pattern_matcher import detect_patterns
 from quantum_engine import (
@@ -9,7 +12,10 @@ from quantum_engine import (
 from quantum_graph import plot_quantum_risk_graph
 from gemini_explainer import explain_result as generate_explanation
 from quantum_redteam import generate_python_redteam_suite
-from utils import *  # Import necessary utilities
+
+# Newly integrated modules
+from quantum_ml import block_to_features, brutal_quantum_anomaly_fit, brutal_quantum_anomaly_predict
+from benchmark import BRUTAL_TEST_CASES, run_brutal_benchmark
 
 # Initialize session state
 if 'analysis_done' not in st.session_state:
@@ -24,20 +30,35 @@ if 'graph_image' not in st.session_state:
     st.session_state.graph_image = None
 if 'code_input' not in st.session_state:
     st.session_state.code_input = ''
+if 'ml_model' not in st.session_state:
+    st.session_state.ml_model = None
+if 'ml_results' not in st.session_state:
+    st.session_state.ml_results = {}
 
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
-# Sidebar for options
+st.markdown("""
+Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
+Shows *real* quantum risk—no classical simulation, no safe mode.
+
+**Only Python code is supported in this brutal edition.**
+""")
+
+# Sidebar Options
 with st.sidebar:
     st.subheader("Options")
-    if st.button("Reset"):
+    use_ml = st.checkbox("Enable Quantum ML Anomaly Detection", value=True)
+    run_benchmark = st.checkbox("Run Brutal Benchmark Test Cases", value=False)
+
+    if st.button("🔄 Reset Analysis"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
-        st.experimental_rerun()
+        st.rerun()
 
-# Upload or paste code
+# File Upload or Paste Code
 uploaded_file = st.file_uploader("Upload Python code file", type=["py"], key="file_upload")
+
 default_code = '''import random
 def rare_bomb():
     if random.random() < 0.22:
@@ -52,30 +73,30 @@ code_input = st.text_area(
     value=st.session_state.code_input if st.session_state.code_input else file_code,
     key="main_code_input"
 )
-
-# Save current code input to session state
 st.session_state.code_input = code_input
 
-# Run Analysis Button
 run_clicked = st.button("⚡️ Brutal Quantum Analysis")
 
-# Only re-run analysis if button clicked or code changed
+# Run analysis on button click or new code input
 if run_clicked or st.session_state.code_input != st.session_state.get('last_code', ''):
     st.session_state.last_code = st.session_state.code_input
     st.session_state.analysis_done = True
 
-    # Extract logic blocks
+    # Start timer
+    start_time = time.time()
+
     try:
+        # Parse and detect patterns
         st.session_state.logic_blocks = extract_logic_blocks(code_input)
     except Exception as e:
         st.error(f"Error parsing code: {str(e)}")
         st.stop()
 
-    patterns = detect_patterns(st.session_state.logic_blocks)
+    logic_blocks = st.session_state.logic_blocks
+    patterns = detect_patterns(logic_blocks)
     st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
-    st.session_state.quantum_scores = []
 
-    # Pattern arguments
+    # Build quantum circuits and calculate risk scores
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
         "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
@@ -85,10 +106,10 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
         "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
     }
 
-    # Run quantum analysis
-    start_time = time.time()
     quantum_scores = []
-    for pattern in st.session_state.detected:
+    feature_matrix = []
+
+    for i, pattern in enumerate(st.session_state.detected):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
         if circuit:
@@ -96,13 +117,26 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
             pct, risk_label = format_score(score)
             quantum_scores.append(score)
 
-            st.session_state.quantum_scores = quantum_scores
+            # Build feature matrix for ML
+            block = logic_blocks[i]
+            state_probs = np.zeros(8)  # dummy probs; replace with real ones if needed
+            feats = block_to_features(block, score, state_probs)
+            feature_matrix.append(feats)
 
-    end_time = time.time()
-    st.info(f"Analysis completed in {end_time - start_time:.2f} seconds.")
+    st.session_state.quantum_scores = quantum_scores
+
+    # Train ML model if enabled
+    if use_ml and len(feature_matrix) > 1:
+        X = np.array(feature_matrix)
+        model = brutal_quantum_anomaly_fit(X)
+        preds, scores = brutal_quantum_anomaly_predict(model, X)
+        st.session_state.ml_model = model
+        st.session_state.ml_results = {
+            "preds": preds,
+            "scores": scores
+        }
 
     # Build entanglement graph
-    logic_blocks = st.session_state.logic_blocks
     entangled_pairs = [
         (i, j)
         for i, block in enumerate(logic_blocks)
@@ -120,50 +154,40 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
         )
         st.session_state.graph_image = buf
     except Exception as e:
-        st.error(f"Graph generation failed: {e}")
-        st.session_state.graph_image = None
+        st.warning(f"Graph generation failed: {e}")
 
-# Display persisted results
+    end_time = time.time()
+    st.info(f"Analysis completed in {end_time - start_time:.2f} seconds.")
+
+# Display results
 if st.session_state.analysis_done:
     detected = st.session_state.detected
     logic_blocks = st.session_state.logic_blocks
     quantum_scores = st.session_state.quantum_scores
 
-    # Detected Patterns
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
     if detected:
         st.success(", ".join(detected))
     else:
-        st.info("No quantum-native threats detected. Paste all helper logic inline for best detection.")
+        st.info("No quantum-native threats detected.")
 
-    # Logic Blocks
     st.subheader("🧩 Extracted Logic Blocks")
     for block in logic_blocks:
         st.code(f"if {block['condition']}:\n    " + "\n    ".join(block['body']), language="python")
         if block['calls']:
             st.caption("Calls: " + ", ".join(block['calls']))
 
-    # Quantum Analyses
     st.subheader("⚛️ Quantum Pattern Analyses")
 
-    brutal_pattern_args = {
-        "PROBABILISTIC_BOMB": {"prob": 0.22},
-        "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
-        "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
-        "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
-        "QUANTUM_ANTIDEBUG": {"prob": 0.08},
-        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
-    }
-
-    for pattern in detected:
+    for i, pattern in enumerate(detected):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
         if circuit:
-            score, _, _ = run_quantum_analysis(circuit, pattern)
+            score = quantum_scores[i]
             pct, risk_label = format_score(score)
 
             st.markdown(f"### Pattern: `{pattern}`")
-            st.metric("Quantum Pattern Risk", pct, risk_label)
+            st.metric("Quantum Risk", pct, risk_label)
             st.code(circuit_to_text(circuit))
 
             try:
@@ -176,6 +200,15 @@ if st.session_state.analysis_done:
             if explanation:
                 st.markdown("**Gemini AI Explanation:**")
                 st.info(explanation)
+
+    # Show ML Results
+    if use_ml and 'ml_results' in st.session_state and st.session_state.ml_results:
+        st.subheader("🧠 Quantum ML Anomaly Detection")
+        preds = st.session_state.ml_results["preds"]
+        scores = st.session_state.ml_results["scores"]
+        for i, pred in enumerate(preds):
+            label = "🚨 Bomb Likely" if pred == -1 else "✅ Normal"
+            st.markdown(f"Block {i}: **{label}**, Score: `{scores[i]:.4f}`")
 
     # Show Graph
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
@@ -191,6 +224,7 @@ if st.session_state.analysis_done:
         for sample in redteam_samples:
             st.code(sample, language="python")
 
-# Footer
-st.markdown("---")
-st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Python Edition")
+# Run Benchmark if Enabled
+if run_benchmark:
+    st.subheader("📊 Brutal Quantum Benchmark Results")
+    benchmark_data = run_brutal_benchmark()
