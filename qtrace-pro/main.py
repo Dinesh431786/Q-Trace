@@ -118,22 +118,24 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
     st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
 
     # Build quantum circuits and calculate risk scores
-    quantum_scores = []
     feature_matrix = []
 
-    # Only iterate up to the minimum of both lists
-    for i, (block, pattern) in enumerate(zip(logic_blocks, st.session_state.detected)):
+    quantum_scores = []
+    for i, pattern in enumerate(st.session_state.detected):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
+
         if circuit:
             score, _, _ = run_quantum_analysis(circuit, pattern)
             pct, risk_label = format_score(score)
             quantum_scores.append(score)
 
             # Build feature matrix for ML
-            state_probs = np.zeros(8)  # dummy probs; replace with real ones if needed
-            feats = block_to_features(block, score, state_probs)
-            feature_matrix.append(feats)
+            if i < len(logic_blocks):
+                block = logic_blocks[i]
+                state_probs = np.zeros(8)  # dummy probs; replace with real ones if needed
+                feats = block_to_features(block, score, state_probs)
+                feature_matrix.append(feats)
 
     st.session_state.quantum_scores = quantum_scores
 
@@ -191,15 +193,15 @@ if st.session_state.analysis_done:
 
     st.subheader("⚛️ Quantum Pattern Analyses")
 
-    # Safe zip-based iteration
-    for i, (block, pattern) in enumerate(zip(logic_blocks, detected)):
+    for i, pattern in enumerate(detected):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
+
+        st.markdown(f"### Pattern: `{pattern}`")
+
         if circuit:
             score = quantum_scores[i] if i < len(quantum_scores) else 0
             pct, risk_label = format_score(score)
-
-            st.markdown(f"### Pattern: `{pattern}`")
             st.metric("Quantum Risk", pct, risk_label)
             st.code(circuit_to_text(circuit))
 
@@ -213,6 +215,8 @@ if st.session_state.analysis_done:
             if explanation:
                 st.markdown("**Gemini AI Explanation:**")
                 st.info(explanation)
+        else:
+            st.warning("⚠️ No valid quantum circuit built for this pattern.")
 
     # Show ML Results
     if use_ml and 'ml_results' in st.session_state and st.session_state.ml_results:
@@ -240,4 +244,21 @@ if st.session_state.analysis_done:
 # Run Benchmark if Enabled
 if run_benchmark:
     st.subheader("📊 Brutal Quantum Benchmark Results")
-    benchmark_data = run_brutal_benchmark()
+    try:
+        from benchmark import run_brutal_benchmark
+        benchmark_results = run_brutal_benchmark()
+
+        display_data = []
+        for result in benchmark_results:
+            display_data.append({
+                "Test Case": result["Case"],
+                "Detected": result["Detected"],
+                "Expected": result["Expected"],
+                "Quantum Risk": result["QuantumScore"]
+            })
+
+        st.table(display_data)
+
+    except Exception as e:
+        st.error("🚨 Failed to run benchmark")
+        st.code(str(e))
