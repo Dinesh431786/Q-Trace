@@ -2,17 +2,30 @@
 code_parser.py — Brutal Quantum Python-Only Edition
 Recursively extracts logic blocks and inlines all helper logic for maximum adversarial detection.
 """
+
 import ast
 
-def extract_logic_blocks(code, max_inline_depth=4):
+def extract_logic_blocks(code, language="python", max_inline_depth=4):
     """
     Returns a list of logic blocks:
     Each block is: {"condition": "...", "body": [lines...], "calls": [funcs...]}
-    All Python helper functions are inlined recursively up to max_inline_depth.
+
+    Supports only Python for now. Recursively inlines helper functions up to max_inline_depth.
+
+    Args:
+        code (str): Python source code
+        language (str): Language to parse (currently only "python")
+        max_inline_depth (int): Maximum recursion depth for inlining helper functions
+
+    Returns:
+        List[Dict]: List of extracted logic blocks
     """
+    if language != "python":
+        raise ValueError(f"[code_parser] Unsupported language: {language}")
+
     try:
         tree = ast.parse(code)
-    except Exception as e:
+    except SyntaxError as e:
         print(f"[code_parser] AST parse failed: {e}")
         return []
 
@@ -24,24 +37,33 @@ def extract_logic_blocks(code, max_inline_depth=4):
 
     blocks = []
 
-    def get_source_segment(node, code_str):
-        # Get code source text for node (Python 3.8+)
-        try:
-            return ast.get_source_segment(code_str, node)
-        except Exception:
-            return ""
-
     def inline_body(stmts, inline_depth, seen_funcs):
+        """
+        Recursively inline function calls inside body statements
+        Returns:
+            (list of lines, list of called function names)
+        """
         result = []
         calls = []
         for stmt in stmts:
-            # For function calls, try to inline if defined
+            # Inline function calls
             if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
                 func_name = getattr(stmt.value.func, "id", None)
-                if func_name and func_name in func_map and inline_depth < max_inline_depth and func_name not in seen_funcs:
-                    seen_funcs = seen_funcs | {func_name}
-                    # Inline called helper function recursively
-                    result += inline_body(func_map[func_name].body, inline_depth+1, seen_funcs)
+                if (
+                    func_name
+                    and func_name in func_map
+                    and inline_depth < max_inline_depth
+                    and func_name not in seen_funcs
+                ):
+                    seen_funcs.add(func_name)
+                    # Recursively inline function body
+                    inlined, subcalls = inline_body(
+                        func_map[func_name].body,
+                        inline_depth + 1,
+                        seen_funcs.copy()
+                    )
+                    result.extend(inlined)
+                    calls.extend(subcalls)
                 else:
                     src = ast.unparse(stmt).strip() if hasattr(ast, "unparse") else ""
                     result.append(src or f"[CALL] {func_name}()")
@@ -50,7 +72,7 @@ def extract_logic_blocks(code, max_inline_depth=4):
             else:
                 src = ast.unparse(stmt).strip() if hasattr(ast, "unparse") else ""
                 result.append(src)
-                # Find calls inside statements (not just at top-level)
+                # Find function calls inside other statements
                 for node in ast.walk(stmt):
                     if isinstance(node, ast.Call):
                         fn = getattr(node.func, "id", None)
@@ -61,24 +83,29 @@ def extract_logic_blocks(code, max_inline_depth=4):
     for node in ast.walk(tree):
         if isinstance(node, ast.If):
             try:
-                # Condition
+                # Extract condition
                 cond = ast.unparse(node.test).strip() if hasattr(ast, "unparse") else ""
-                # Inline body, recursively expand helpers
+
+                # Inline nested logic
                 body_lines, body_calls = inline_body(node.body, 1, set())
-                blocks.append({
-                    "condition": cond,
-                    "body": body_lines,
-                    "calls": list(set(body_calls))
-                })
+
+                if cond and body_lines:
+                    blocks.append({
+                        "condition": cond,
+                        "body": body_lines,
+                        "calls": list(set(body_calls))
+                    })
             except Exception as e:
                 print(f"[code_parser] Failed to extract block: {e}")
 
     return blocks
 
+
 # --- DEMO ---
 if __name__ == "__main__":
-    sample = '''
+    sample_code = '''
 import random
+
 def helper():
     if random.randint(1, 10) == 7:
         dangerous()
@@ -91,6 +118,13 @@ def rare_bomb():
         helper()
         grant_root_access()
 '''
-    blocks = extract_logic_blocks(sample)
-    for b in blocks:
-        print(b)
+
+    print("Extracted Logic Blocks:")
+    blocks = extract_logic_blocks(sample_code)
+    for idx, block in enumerate(blocks):
+        print(f"\nBlock {idx}:")
+        print("Condition:", block["condition"])
+        print("Body:")
+        for line in block["body"]:
+            print("  ", line)
+        print("Calls:", block["calls"])
