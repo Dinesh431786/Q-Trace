@@ -1,5 +1,3 @@
-# pattern_matcher.py
-
 import re
 
 class LogicPattern:
@@ -20,16 +18,23 @@ class LogicPattern:
     UNRESTRICTED_FILE_WRITE = "UNRESTRICTED_FILE_WRITE"
     PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION"
     WEB_BACKDOOR = "WEB_BACKDOOR"
+    PROBABILISTIC_BOMB = "PROBABILISTIC_BOMB"
     UNKNOWN = "UNKNOWN"
+
+# Common credential patterns for hardcoded secret detection
+CREDENTIAL_WORDS = [
+    "key", "apikey", "api_key", "secret", "token", "password", "passwd", "pwd"
+]
 
 def detect_patterns(expr_list, language="generic"):
     """
     Given a list of extracted logic expressions, return list of detected pattern types.
-    Optionally use language for language-specific heuristics.
+    Now supports detection of probabilistic/uncertain logic.
     """
     patterns = set()
     for expr in expr_list:
         text = expr.lower()
+
         # --- Cross-language patterns ---
         if re.search(r'\b[a-z0-9_]+\s*\^\s*[a-z0-9_]+\s*\^\s*[a-z0-9_]+', text):
             patterns.add(LogicPattern.THREE_XOR)
@@ -48,6 +53,14 @@ def detect_patterns(expr_list, language="generic"):
         if any(x in text for x in ['goto', 'unreachable', 'break', 'continue']):
             patterns.add(LogicPattern.CONTROL_FLOW)
 
+        # --- Quantum/Probabilistic/Obfuscated detection ---
+        # Probabilistic logic bomb: look for random triggers combined with dangerous functions
+        if (
+            re.search(r'random\.', text)
+            and any(danger in text for danger in ['os.system', 'shutdown', 'exec', 'selfdestruct'])
+        ):
+            patterns.add(LogicPattern.PROBABILISTIC_BOMB)
+
         # --- Language & risk-specific enterprise patterns ---
         # Dangerous function calls
         if language in ["python", "generic"]:
@@ -55,7 +68,12 @@ def detect_patterns(expr_list, language="generic"):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
             if re.search(r'pickle\.load|eval\(|marshal\.loads', text):
                 patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
-            if re.search(r'(["\'])[A-Za-z0-9]{8,}(["\'])', text) and "key" in text:
+            # Expanded: HARDCODED_CREDENTIAL checks for more terms
+            cred_regex = r'(["\'])[A-Za-z0-9_\-@$!%*#?&]{8,}(["\'])'
+            if (
+                re.search(cred_regex, text)
+                and any(word in text for word in CREDENTIAL_WORDS)
+            ):
                 patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
             if re.search(r'random\.random|random\.randint|random\.choice', text):
                 patterns.add(LogicPattern.INSECURE_RANDOM)
@@ -64,11 +82,12 @@ def detect_patterns(expr_list, language="generic"):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
             if "objectinputstream" in text and "readobject" in text:
                 patterns.add(LogicPattern.UNSAFE_DESERIALIZATION)
-            if re.search(r'string\s+[a-z]\s*=', expr, re.IGNORECASE):
+            # Less aggressive: only trigger OBFUSCATED_VARIABLES for 2+ single-char vars
+            if len(re.findall(r'\b[a-z]\s*=', expr, re.IGNORECASE)) > 1 and len(expr) < 60:
                 patterns.add(LogicPattern.OBFUSCATED_VARIABLES)
             if re.search(r'new\s+random\(', text):
                 patterns.add(LogicPattern.INSECURE_RANDOM)
-            if re.search(r'\bapi[_\-]?key\b', text) or re.search(r'private\s+static\s+final\s+string\s+\w+\s*=', text):
+            if any(word in text for word in CREDENTIAL_WORDS) and re.search(cred_regex, text):
                 patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
             if "filewriter" in text:
                 patterns.add(LogicPattern.UNRESTRICTED_FILE_WRITE)
@@ -81,14 +100,14 @@ def detect_patterns(expr_list, language="generic"):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
             if re.search(r'crypto\.randombytes|math\.random', text):
                 patterns.add(LogicPattern.INSECURE_RANDOM)
-            if re.search(r'process\.env\.[a-z_]+', text):
+            if any(word in text for word in CREDENTIAL_WORDS) and re.search(cred_regex, text):
                 patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
             if re.search(r'fs\.writefile', text):
                 patterns.add(LogicPattern.UNRESTRICTED_FILE_WRITE)
         if language == "solidity":
             if re.search(r'(tx\.origin|block\.timestamp)', text):
                 patterns.add(LogicPattern.TIME_BOMB)
-            if re.search(r'private\s+[a-z0-9_]+\s*=', text):
+            if any(word in text for word in CREDENTIAL_WORDS) and re.search(cred_regex, text):
                 patterns.add(LogicPattern.HARDCODED_CREDENTIAL)
         if language in ["c", "cpp"]:
             if re.search(r'system\(', text) or re.search(r'popen\(', text):
@@ -104,20 +123,25 @@ def detect_patterns(expr_list, language="generic"):
                 patterns.add(LogicPattern.DANGEROUS_FUNCTION)
 
         # Web backdoor / suspicious route
-        if re.search(r'debug|admin|root|backdoor', text) and ('if' in text or 'route' in text):
+        if (
+            re.search(r'debug|admin|root|backdoor', text)
+            and ('if' in text or 'route' in text)
+        ):
             patterns.add(LogicPattern.WEB_BACKDOOR)
-        
-        # Generic obfuscation (single char vars)
-        if re.search(r'\b[a-z]\s*=', expr, re.IGNORECASE) and len(expr) < 60:
+
+        # Generic obfuscation (now less aggressive)
+        if (
+            len(re.findall(r'\b[a-z]\s*=', expr, re.IGNORECASE)) > 1
+            and len(expr) < 60
+        ):
             patterns.add(LogicPattern.OBFUSCATED_VARIABLES)
-        
+
     if not patterns:
         patterns.add(LogicPattern.UNKNOWN)
     return list(patterns)
 
 # --- Test Example ---
 if __name__ == "__main__":
-    # Test all main patterns on a multi-language set of expressions
     exprs = [
         "(a ^ b ^ c) == 42",
         "datetime.date.today() == datetime.date(2077, 1, 1)",
@@ -125,12 +149,8 @@ if __name__ == "__main__":
         "if (a + b) % 13 == 5",
         "goto error_handler",
         'os.system("ls")',
-        'ProcessBuilder("bash", "-c", "rm -rf /")',
-        'private static final String API_KEY = "XYZ12345";',
-        'ObjectInputStream ois = new ObjectInputStream(f); ois.readObject();',
-        'eval(userInput)',
-        'random.randint(0,100)',
-        'FileWriter("/tmp/output.txt")',
+        'random.randint(0,100) * 42 == 13 and os.system("shutdown -h now")',
+        'const API_TOKEN = "s3cr3tT0k3n$";',
         'if(userInput.equals("admin")){ ... }',
         'route("/debug")',
         'tx.origin'
