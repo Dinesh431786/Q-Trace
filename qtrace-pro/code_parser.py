@@ -1,9 +1,8 @@
 import re
-import streamlit as st
 
+# --- TREE-SITTER CONFIG ---
 TREE_SITTER_AVAILABLE = False
 LANGUAGE_MAP = {}
-
 LANG_NODE_MAP = {
     "python": {
         "if": "if_statement",
@@ -14,7 +13,7 @@ LANG_NODE_MAP = {
         "def": "function_definition",
         "def_name": "name"
     },
-    # ... add similar entries for other languages as needed
+    # Add other languages as needed
 }
 
 def initialize_tree_sitter():
@@ -22,47 +21,41 @@ def initialize_tree_sitter():
     try:
         from tree_sitter import Parser
         from tree_sitter_language_pack import get_language
-
-        langs = ["python"]  # Add more if you want deeper recursion in JS, C, etc.
+        langs = ["python"]  # add: c, js, etc. for full multi-language
         for lang in langs:
             LANGUAGE_MAP[lang] = get_language(lang)
         TREE_SITTER_AVAILABLE = True
-        print("✅ Tree-sitter (recursive brutal) initialized.")
-        return True
+        print("✅ Tree-sitter brutal mode initialized.")
     except Exception as e:
         print(f"❌ Tree-sitter initialization failed: {e}")
         TREE_SITTER_AVAILABLE = False
-        return False
 
 def extract_function_map_treesitter(code, language="python"):
-    # Returns dict: {func_name: [lines...]}
     from tree_sitter import Parser
     parser = Parser()
     parser.set_language(LANGUAGE_MAP[language])
     nodes = LANG_NODE_MAP.get(language, LANG_NODE_MAP["python"])
     tree = parser.parse(code.encode() if isinstance(code, str) else code)
     root = tree.root_node
-
-    function_map = {}
-
+    func_map = {}
     def walk(node):
         if node.type == nodes["def"]:
             name = None
+            body_lines = []
             for child in node.children:
                 if child.type == nodes["def_name"]:
                     name = code[child.start_byte:child.end_byte].strip()
                 if child.type in nodes["block"]:
-                    body_lines = []
                     for gc in child.children:
                         text = code[gc.start_byte:gc.end_byte].strip()
                         if text:
                             body_lines.append(text)
-                    if name:
-                        function_map[name] = body_lines
+            if name:
+                func_map[name] = body_lines
         for child in node.children:
             walk(child)
     walk(root)
-    return function_map
+    return func_map
 
 def extract_logic_blocks_treesitter(code, language="python"):
     from tree_sitter import Parser
@@ -72,7 +65,6 @@ def extract_logic_blocks_treesitter(code, language="python"):
     logic_blocks = []
     tree = parser.parse(code.encode() if isinstance(code, str) else code)
     root = tree.root_node
-
     def walk(node):
         cond_nodes = [nodes["if"], nodes["while"], nodes["for"]]
         if node.type in cond_nodes:
@@ -98,14 +90,13 @@ def extract_logic_blocks_treesitter(code, language="python"):
     return logic_blocks
 
 def extract_user_function_map_regex(code):
-    # Simple Python def func(...): regex extractor (expand for other langs if needed)
     func_map = {}
     lines = code.splitlines()
     func_name = None
     func_body = []
     in_func = False
     indent_level = None
-    for line in lines:
+    for idx, line in enumerate(lines):
         match = re.match(r'\s*def\s+(\w+)\s*\(', line)
         if match:
             if func_name and func_body:
@@ -118,7 +109,11 @@ def extract_user_function_map_regex(code):
         if in_func:
             if indent_level is None and line.strip():
                 indent_level = len(line) - len(line.lstrip())
-            if line.strip() == "" or (len(line) - len(line.lstrip())) < (indent_level or 0):
+            if (
+                line.strip() == "" or
+                (len(line) - len(line.lstrip())) < (indent_level or 0) or
+                (line.strip() and line.lstrip().startswith("def ") and idx != 0)
+            ):
                 in_func = False
                 if func_name and func_body:
                     func_map[func_name] = list(func_body)
@@ -158,43 +153,39 @@ def extract_logic_blocks_regex(code, language="python"):
             i += 1
     return blocks
 
-def expand_recursive_logic_blocks(blocks, function_map, depth=0, max_depth=4):
-    """
-    For each logic block, if condition/calls reference user functions, expand those.
-    """
+def expand_recursive_logic_blocks(blocks, function_map, depth=0, max_depth=5, seen=None):
+    # For each block, if calls reference user funcs, expand those up to max_depth
     brutal_blocks = list(blocks)
-    seen_calls = set()
+    if seen is None:
+        seen = set()
     for block in blocks:
         for func in block.get("calls", []):
-            if func in function_map and func not in seen_calls and depth < max_depth:
-                seen_calls.add(func)
-                # Parse the function body for further logic blocks (may have more conditions/calls)
+            if func in function_map and (func, depth) not in seen and depth < max_depth:
+                seen.add((func, depth))
                 func_code = "\n".join(function_map[func])
                 nested_blocks = extract_logic_blocks_regex(func_code)
                 if nested_blocks:
-                    nested_expanded = expand_recursive_logic_blocks(nested_blocks, function_map, depth + 1, max_depth)
+                    nested_expanded = expand_recursive_logic_blocks(nested_blocks, function_map, depth+1, max_depth, seen)
                     brutal_blocks.extend(nested_expanded)
     return brutal_blocks
 
 def extract_logic_blocks(code, language="python"):
     if not code or not code.strip():
         return []
+    # 1. Init Tree-sitter
     if not TREE_SITTER_AVAILABLE and LANGUAGE_MAP == {}:
         initialize_tree_sitter()
     if TREE_SITTER_AVAILABLE:
         try:
-            # 1. Extract function map
             function_map = extract_function_map_treesitter(code, language)
-            # 2. Extract logic blocks
             blocks = extract_logic_blocks_treesitter(code, language)
-            # 3. Expand recursively
             brutal_blocks = expand_recursive_logic_blocks(blocks, function_map)
             return brutal_blocks
         except Exception as e:
             print(f"Tree-sitter parsing failed: {e}")
             print("Falling back to regex parsing...")
 
-    # Fallback: regex extraction
+    # Regex fallback (always brutal recursion!)
     function_map = extract_user_function_map_regex(code)
     blocks = extract_logic_blocks_regex(code, language)
     brutal_blocks = expand_recursive_logic_blocks(blocks, function_map)
@@ -204,8 +195,10 @@ initialize_tree_sitter()
 
 # --- DEMO/TEST ---
 if __name__ == "__main__":
-    py_code = """
+    py_code = '''
 import random
+import os
+
 def phase_one():
     return random.random() < 0.17
 
@@ -221,5 +214,8 @@ def quantum_beast_bomb():
         print("Quantum Beast Bomb Detonated!")
 
 quantum_beast_bomb()
-"""
-    print("PYTHON:", extract_logic_blocks(py_code, "python"))
+'''
+    brutal = extract_logic_blocks(py_code, "python")
+    print("BRUTAL RECURSIVE LOGIC BLOCKS:")
+    for b in brutal:
+        print(b)
