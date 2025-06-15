@@ -158,7 +158,19 @@ if st.session_state.get("run_analysis"):
         user_inputs["b_val"] = st.number_input("Input value B (0 or 1):", 0, 1, 1, key="B2_input")
     elif chosen_pattern == "TIME_BOMB":
         st.markdown("### ⚛️ Quantum Analysis: Time Bomb Logic")
-        user_inputs["timestamp_val"] = st.number_input("Timestamp value:", 0, 2147483647, 1799999999)
+        col1, col2 = st.columns(2)
+        user_inputs["timestamp_val"] = col1.number_input(
+            "Simulated timestamp (should match code logic):",
+            0, 2147483647, 1799999999, key="timestamp_input"
+        )
+        user_inputs["threshold"] = col2.number_input(
+            "Threshold (if timestamp > threshold, bomb triggers):",
+            0, 2147483647, 1800000000, key="threshold_input"
+        )
+        st.caption(
+            "For full trigger (100% risk): set Simulated timestamp *much* greater than Threshold.\n"
+            "For no trigger (0% risk): set Simulated timestamp *much* less than Threshold."
+        )
     elif chosen_pattern == "ARITHMETIC":
         st.markdown("### ⚛️ Quantum Analysis: Arithmetic/Overflow Logic")
         user_inputs["val1"] = st.number_input("Value 1:", 0, 100000, 13)
@@ -177,7 +189,7 @@ if st.session_state.get("run_analysis"):
         # -- Small chart with clear explanation for any user --
         try:
             buf = visualize_quantum_state(circuit)
-            st.image(buf, caption="Quantum State Probabilities", width=250)  # Small, clean
+            st.image(buf, caption="Quantum State Probabilities", width=250)
             st.markdown("""
                 <div style="background-color:#eef7ff;padding:10px 16px;border-radius:8px;margin-top:3px;">
                 <b>How to read this chart:</b><br>
