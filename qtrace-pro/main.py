@@ -28,11 +28,12 @@ def rare_bomb():
         grant_root_access()
 '''
 
-file_code = uploaded_file.read().decode(errors="ignore") if uploaded_file else None
+file_code = uploaded_file.read().decode(errors="ignore") if uploaded_file else default_code
 
 code_input = st.text_area(
-    "Paste your Python code snippet:", height=240,
-    value=file_code if file_code else default_code,
+    "Paste your Python code snippet:",
+    height=240,
+    value=file_code,
     key="main_code_input"
 )
 
@@ -42,19 +43,20 @@ if st.button("⚡️ Brutal Quantum Analysis"):
     detected = [p for p in patterns if p != "UNKNOWN"]
 
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
-    st.success(", ".join(detected)) if detected else st.info(
-        "No quantum-native, adversarial logic detected.\n\n"
-        "⚠️ Note: Brutal detection works best if you paste all helper logic inline."
-    )
+    if detected:
+        st.success(", ".join(detected))
+    else:
+        st.info(
+            "No quantum-native threats detected. Paste all helper logic inline for best detection."
+        )
 
     st.subheader("🧩 Extracted Logic Blocks")
-    if logic_blocks:
-        for block in logic_blocks:
-            st.code(f"if {block['condition']}:\n    " + "\n    ".join(block['body']), language="python")
-            if block['calls']:
-                st.caption("Calls: " + ", ".join(block['calls']))
-    else:
-        st.info("No logic blocks extracted.")
+    for block in logic_blocks:
+        st.code(f"if {block['condition']}:\n    " + "\n    ".join(block['body']), language="python")
+        if block['calls']:
+            st.caption("Calls: " + ", ".join(block['calls']))
+
+    st.subheader("⚛️ Quantum Pattern Analyses")
 
     brutal_pattern_args = {
         "PROBABILISTIC_BOMB": {"prob": 0.22},
@@ -66,44 +68,51 @@ if st.button("⚡️ Brutal Quantum Analysis"):
     }
 
     quantum_scores = []
-    for p in detected:
-        st.markdown(f"## ⚛️ Quantum Analysis: `{p}`")
-        circuit = build_quantum_circuit(p, **brutal_pattern_args.get(p, {}))
+    for pattern in detected:
+        args = brutal_pattern_args.get(pattern, {})
+        circuit = build_quantum_circuit(pattern, **args)
         if circuit:
-            score, _, _ = run_quantum_analysis(circuit, p)
+            score, _, _ = run_quantum_analysis(circuit, pattern)
             pct, risk_label = format_score(score)
             quantum_scores.append(score)
+
+            st.markdown(f"### Pattern: `{pattern}`")
             st.metric("Quantum Pattern Risk", pct, risk_label)
-            st.code(circuit_to_text(circuit), language="text")
-            try:
-                buf = visualize_quantum_state(circuit, f"Quantum State ({p})")
-                st.image(buf, caption="Quantum State Probabilities", width=350)
-            except Exception as e:
-                st.warning(f"Quantum state visualization error: {e}")
+            st.code(circuit_to_text(circuit))
 
             try:
-                explanation = generate_explanation(score, p, code_input)
-                st.info(f"**Gemini AI Explanation:**\n{explanation}")
-            except Exception as e:
-                st.warning(f"Gemini explanation error: {e}")
-        else:
-            st.warning(f"No quantum circuit defined for `{p}`.")
+                buf = visualize_quantum_state(circuit, f"Quantum State ({pattern})")
+                st.image(buf, caption="Quantum State Probabilities", width=350)
+            except Exception:
+                st.info("Quantum state chart unavailable for this pattern.")
+
+            explanation = generate_explanation(score, pattern, code_input)
+            if explanation:
+                st.markdown("**Gemini AI Explanation:**")
+                st.info(explanation)
 
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
-    entangled_pairs = [(i, j) for i, blk in enumerate(logic_blocks)
-                       for call in blk['calls']
-                       for j, target_blk in enumerate(logic_blocks)
-                       if call in ''.join(target_blk['body'])]
+
+    entangled_pairs = [
+        (i, j)
+        for i, block in enumerate(logic_blocks)
+        for call in block['calls']
+        for j, blk in enumerate(logic_blocks)
+        if call in "".join(blk['body'])
+    ]
 
     buf = plot_quantum_risk_graph(
-        logic_blocks, quantum_scores + [0]*(len(logic_blocks)-len(quantum_scores)),
-        entangled_pairs=entangled_pairs, streamlit_buf=True
+        logic_blocks,
+        quantum_scores + [0] * (len(logic_blocks) - len(quantum_scores)),
+        entangled_pairs=entangled_pairs,
+        streamlit_buf=True
     )
     st.image(buf)
 
     if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
         st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
-        for sample in generate_python_redteam_suite(3):
+        redteam_samples = generate_python_redteam_suite(3)
+        for sample in redteam_samples:
             st.code(sample, language="python")
 
 st.markdown("---")
