@@ -9,6 +9,16 @@ from quantum_graph import plot_quantum_risk_graph
 from gemini_explainer import explain_result as generate_explanation
 from quantum_redteam import generate_python_redteam_suite
 
+# Initialize session state for persisting results
+if 'analysis_done' not in st.session_state:
+    st.session_state.analysis_done = False
+if 'detected' not in st.session_state:
+    st.session_state.detected = []
+if 'logic_blocks' not in st.session_state:
+    st.session_state.logic_blocks = []
+if 'quantum_scores' not in st.session_state:
+    st.session_state.quantum_scores = []
+
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
@@ -37,10 +47,33 @@ code_input = st.text_area(
     key="main_code_input"
 )
 
-if st.button("⚡️ Brutal Quantum Analysis"):
-    logic_blocks = extract_logic_blocks(code_input)
-    patterns = detect_patterns(logic_blocks)
-    detected = [p for p in patterns if p != "UNKNOWN"]
+run_clicked = st.button("⚡️ Brutal Quantum Analysis")
+
+# Run analysis only if button clicked or input changed
+if run_clicked or st.session_state.get('last_code') != code_input:
+    st.session_state.last_code = code_input
+    st.session_state.analysis_done = True
+
+    # Run analysis
+    st.session_state.logic_blocks = extract_logic_blocks(code_input)
+    patterns = detect_patterns(st.session_state.logic_blocks)
+    st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
+    st.session_state.quantum_scores = []
+
+    st.session_state.brutal_pattern_args = {
+        "PROBABILISTIC_BOMB": {"prob": 0.22},
+        "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
+        "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
+        "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
+        "QUANTUM_ANTIDEBUG": {"prob": 0.08},
+        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
+    }
+
+# Display persisted results
+if st.session_state.analysis_done:
+    detected = st.session_state.detected
+    logic_blocks = st.session_state.logic_blocks
+    brutal_pattern_args = st.session_state.brutal_pattern_args
 
     st.subheader("🔬 Detected Quantum-Native Pattern(s)")
     if detected:
@@ -57,15 +90,6 @@ if st.button("⚡️ Brutal Quantum Analysis"):
             st.caption("Calls: " + ", ".join(block['calls']))
 
     st.subheader("⚛️ Quantum Pattern Analyses")
-
-    brutal_pattern_args = {
-        "PROBABILISTIC_BOMB": {"prob": 0.22},
-        "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
-        "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
-        "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
-        "QUANTUM_ANTIDEBUG": {"prob": 0.08},
-        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
-    }
 
     quantum_scores = []
     for pattern in detected:
@@ -91,6 +115,8 @@ if st.button("⚡️ Brutal Quantum Analysis"):
                 st.markdown("**Gemini AI Explanation:**")
                 st.info(explanation)
 
+    st.session_state.quantum_scores = quantum_scores
+
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
 
     entangled_pairs = [
@@ -109,6 +135,7 @@ if st.button("⚡️ Brutal Quantum Analysis"):
     )
     st.image(buf)
 
+    # Red Team Suite Toggle
     if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
         st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
         redteam_samples = generate_python_redteam_suite(3)
