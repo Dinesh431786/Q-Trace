@@ -35,6 +35,17 @@ if 'ml_model' not in st.session_state:
 if 'ml_results' not in st.session_state:
     st.session_state.ml_results = {}
 
+# Define pattern args at top level to avoid NameError
+brutal_pattern_args = {
+    "PROBABILISTIC_BOMB": {"prob": 0.22},
+    "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
+    "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
+    "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
+    "QUANTUM_ANTIDEBUG": {"prob": 0.08},
+    "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
+}
+
+# Set page config
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
@@ -106,16 +117,6 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
     logic_blocks = st.session_state.logic_blocks
     patterns = detect_patterns(logic_blocks)
     st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
-
-    # Build quantum circuits and calculate risk scores
-    brutal_pattern_args = {
-        "PROBABILISTIC_BOMB": {"prob": 0.22},
-        "ENTANGLED_BOMB": {"probs": [0.19, 0.71]},
-        "CHAINED_QUANTUM_BOMB": {"chain_length": 3, "prob": 0.14},
-        "QUANTUM_STEGANOGRAPHY": {"encode_val": 1},
-        "QUANTUM_ANTIDEBUG": {"prob": 0.08},
-        "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
-    }
 
     quantum_scores = []
     feature_matrix = []
