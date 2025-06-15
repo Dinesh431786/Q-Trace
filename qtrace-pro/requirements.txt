@@ -5,6 +5,4 @@ networkx
 numpy
 scikit-learn
 google-generativeai
-tree-sitter>=0.22.1
-tree_sitter_language_pack
 pygments
