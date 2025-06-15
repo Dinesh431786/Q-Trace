@@ -45,7 +45,6 @@ brutal_pattern_args = {
     "CROSS_FUNCTION_QUANTUM_BOMB": {"func_probs": [0.31, 0.47, 0.99]}
 }
 
-# Set page config
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
 st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 
@@ -118,10 +117,12 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
     patterns = detect_patterns(logic_blocks)
     st.session_state.detected = [p for p in patterns if p != "UNKNOWN"]
 
+    # Build quantum circuits and calculate risk scores
     quantum_scores = []
     feature_matrix = []
 
-    for i, pattern in enumerate(st.session_state.detected):
+    # Only iterate up to the minimum of both lists
+    for i, (block, pattern) in enumerate(zip(logic_blocks, st.session_state.detected)):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
         if circuit:
@@ -130,7 +131,6 @@ if run_clicked or st.session_state.code_input != st.session_state.get('last_code
             quantum_scores.append(score)
 
             # Build feature matrix for ML
-            block = logic_blocks[i]
             state_probs = np.zeros(8)  # dummy probs; replace with real ones if needed
             feats = block_to_features(block, score, state_probs)
             feature_matrix.append(feats)
@@ -191,11 +191,12 @@ if st.session_state.analysis_done:
 
     st.subheader("⚛️ Quantum Pattern Analyses")
 
-    for i, pattern in enumerate(detected):
+    # Safe zip-based iteration
+    for i, (block, pattern) in enumerate(zip(logic_blocks, detected)):
         args = brutal_pattern_args.get(pattern, {})
         circuit = build_quantum_circuit(pattern, **args)
         if circuit:
-            score = quantum_scores[i]
+            score = quantum_scores[i] if i < len(quantum_scores) else 0
             pct, risk_label = format_score(score)
 
             st.markdown(f"### Pattern: `{pattern}`")
@@ -218,9 +219,9 @@ if st.session_state.analysis_done:
         st.subheader("🧠 Quantum ML Anomaly Detection")
         preds = st.session_state.ml_results["preds"]
         scores = st.session_state.ml_results["scores"]
-        for i, pred in enumerate(preds):
+        for i, (pred, score) in enumerate(zip(preds, scores)):
             label = "🚨 Bomb Likely" if pred == -1 else "✅ Normal"
-            st.markdown(f"Block {i}: **{label}**, Score: `{scores[i]:.4f}`")
+            st.markdown(f"Block {i}: **{label}**, Score: `{score:.4f}`")
 
     # Show Graph
     st.subheader("⚛️ Quantum Risk & Entanglement Graph")
