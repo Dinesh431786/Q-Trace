@@ -11,7 +11,6 @@ class LogicPattern:
 
 
 def _is_dangerous_call(stmt):
-    """Detects dangerous system interactions (system, exec, shutdown, etc.)"""
     danger_keywords = [
         r"os\.system", r"exec\(", r"subprocess\.", r"shutdown", r"selfdestruct",
         r"grant_root", r"open\(.*w", r"delete", r"remove", r"pickle", r"eval\(",
@@ -22,7 +21,6 @@ def _is_dangerous_call(stmt):
 
 
 def _is_randomness(stmt):
-    """Detects randomness sources (random/probabilistic triggers)"""
     randomness_keywords = [
         r"random\.random", r"random\.randint", r"random\.choice",
         r"secrets\.randbelow", r"np\.random", r"quantum_rng", r"qrng",
@@ -32,7 +30,6 @@ def _is_randomness(stmt):
 
 
 def _is_antidebug(stmt):
-    """Detects anti-debug tricks and timing tricks"""
     antidbg_keywords = [
         r"time\.sleep", r"signal\.pause", r"inspect\.", r"sys\.settrace",
         r"ptrace", r"anti_debug", r"traceback", r"__debug__", r"getframeinfo",
@@ -106,7 +103,7 @@ def detect_patterns(logic_blocks):
 
     return list(patterns)
 
-# --- Example brutal quantum logic input for testing ---
+# --- DEMO TEST ---
 if __name__ == "__main__":
     logic_blocks = [
         {
@@ -141,7 +138,7 @@ if __name__ == "__main__":
             "calls": ["admin_panel_grant"]
         },
         {
-            "condition": "check_1() and check_2() and check_3()",
+            "condition": "random.random() < 0.3 and random.randint(1, 7) == 3 and random.random() < 0.5",
             "body": [
                 "os.system('shutdown -h now')",
                 "print('Brutal chained quantum bomb triggered!')"
