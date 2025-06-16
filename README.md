@@ -5,33 +5,23 @@ Detects true quantum-native, adversarial threats in Python: probabilistic bombs,
 
 🚀 Features
 True quantum-native adversarial pattern detection
-
 Probabilistic bombs, chained logic, quantum steganography, entanglement, and anti-debugging logic
-
 Real quantum risk scoring — using Cirq quantum simulator (no regex, no fake simulation)
-
 Supports file uploads and direct code snippet analysis
-
 Visualizes logic extraction, risk graphs, quantum state probabilities
-
 Quantum ML anomaly detection for advanced threat identification
-
 “Red Team” adversarial code samples (optional)
 
 🛡️ What Makes Q-Trace Pro Unique?
 Brutal honesty: Exposes quantum-inspired and adversarial code patterns missed by classical/static tools
-
 No safe mode: Analyses without restrictions — for advanced security and red team research
-
 No classical simulation: All patterns are mapped to quantum circuits and simulated
-
 Full logic extraction: Highlights all suspicious logic blocks, chained triggers, and cross-function threats
 
 💡 How to Use
 Upload a .py Python file or paste a code snippet into the web UI
 
 Click Brutal Quantum Analysis
-
 Review detected patterns, quantum risk scores, logic extraction, and visualizations
 
 (Optional) Generate Red Team suite for adversarial sample code
@@ -50,8 +40,8 @@ Copy
 Edit
 pip install -r requirements.txt
 streamlit run app.py
-🧬 Example Output
 
+ Output Results 
 ![Q trace result 1](https://github.com/user-attachments/assets/6536abeb-9f78-4ce9-a191-98f2746968f7)
 ![Q trace result 2](https://github.com/user-attachments/assets/ab906aa0-9ee2-4ca9-ba1a-d3fddc5eaff6)
 ![Q trace result 3](https://github.com/user-attachments/assets/0ff5f519-912e-429a-9487-108bee937747)
