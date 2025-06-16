@@ -41,7 +41,7 @@ brutal_pattern_args = {
 }
 
 st.set_page_config(page_title="Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION", layout="wide")
-st.title("🧬 Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
+st.title("⚛️ Q-Trace Pro — BRUTAL QUANTUM PYTHON-ONLY EDITION")
 st.markdown("""
 Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
