@@ -118,11 +118,11 @@ def run_quantum_analysis(circuit, pattern="PROBABILISTIC_BOMB", shots=1024):
 
 def format_score(score):
     pct = f"{score * 100:.1f}%"
-    if score > 0.8:
+    if score > 0.5:
         return pct, "💀 EXTREME RISK"
-    elif score > 0.5:
+    elif score > 0.3:
         return pct, "⚠️ HIGH RISK"
-    elif score > 0.2:
+    elif score > 0.1:
         return pct, "LOW RISK"
     return pct, "SAFE"
 
