@@ -219,14 +219,14 @@ if st.session_state.analysis_done:
         st.warning("Entanglement graph could not be generated.")
 
     # Red Team Samples
-    if st.checkbox("Generate Brutal Red Team Suite (Sample Attacks)"):
-        st.subheader("🛠️ Brutal Quantum Red Team Code Samples")
+    if st.checkbox("Generate Red Team Suite (Sample Attacks)"):
+        st.subheader("🛠️ Quantum Red Team Code Samples")
         redteam_samples = generate_python_redteam_suite(3)
         for sample in redteam_samples:
             st.code(sample, language="python")
 
 if run_benchmark:
-    st.subheader("📊 Brutal Quantum Benchmark Results")
+    st.subheader("📊Quantum Benchmark Results")
     try:
         # run_brutal_benchmark must return a list of dicts (not just print!)
         benchmark_results = run_brutal_benchmark()
