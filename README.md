@@ -35,7 +35,7 @@ Click Brutal Quantum Analysis
 Review detected patterns, quantum risk scores, logic extraction, and visualizations
 
 (Optional) Generate Red Team suite for adversarial sample code
-![Q trace red team ](https://github.com/user-attachments/assets/3d2aff02-3907-4acd-8071-0f600b425df5)
+![q trace red 1](https://github.com/user-attachments/assets/b1fa0ff8-0f46-4d24-8c04-a7c13afd1711)
 
 Requirements (for local use):
 
