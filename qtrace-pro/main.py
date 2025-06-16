@@ -46,7 +46,7 @@ st.markdown("""
 Detects only true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, quantum anti-debug.
 Shows *real* quantum risk—no classical simulation, no safe mode.
 
-**Only Python code is supported in this brutal edition.**
+**Only Python code is supported in this edition.**
 """)
 
 with st.sidebar:
@@ -244,4 +244,4 @@ if run_benchmark:
         st.code(str(e))
 
 st.markdown("---")
-st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Brutal Quantum Python Edition")
+st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Quantum Python Security Analyzer")
