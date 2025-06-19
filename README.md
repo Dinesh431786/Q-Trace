@@ -1,8 +1,6 @@
 ⚛️ Q-Trace Pro — Quantum Python Security Analyzer
 Detects true quantum-native, adversarial threats in Python: probabilistic bombs, entanglement, chained logic, steganography, and quantum anti-debug. Shows real quantum risk — no classical simulation, no safe mode.
 
-<!![Q trace img](https://github.com/user-attachments/assets/d8de04a6-5b5b-4619-8112-c05c1891d903)
-
 🚀 Features
 True quantum-native adversarial pattern detection
 Probabilistic bombs, chained logic, quantum steganography, entanglement, and anti-debugging logic
@@ -20,6 +18,8 @@ Full logic extraction: Highlights all suspicious logic blocks, chained triggers,
 
 💡 How to Use
 Upload a .py Python file or paste a code snippet into the web UI
+
+<!![Q trace img](https://github.com/user-attachments/assets/d8de04a6-5b5b-4619-8112-c05c1891d903)
 
 Click Brutal Quantum Analysis
 Review detected patterns, quantum risk scores, logic extraction, and visualizations
