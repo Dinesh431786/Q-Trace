@@ -244,4 +244,4 @@ if run_benchmark:
         st.code(str(e))
 
 st.markdown("---")
-st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Quantum Python Security Analyzer")
+st.caption("Built with Cirq, Streamlit, Gemini AI, and pure quantum logic. (c) 2025 Q-Trace Pro — Quantum Security Analyzer")
